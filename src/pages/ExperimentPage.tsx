@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useMemo, Suspense, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, Suspense, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, useGLTF, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 
-import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarDivider, SidebarFooter } from '../components/Sidebar'
+import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter } from '../components/Sidebar'
 import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { ModalSystem } from '../components/ModalSystem'
@@ -14,7 +14,7 @@ import { getVariantByPage, needsSidebar, getControlDescription, type VariantConf
 import { getSidebarPosition } from '../utils/sidebarPosition'
 import { analytics } from '../utils/analytics'
 
-// Hardcoded zone config - X>0, Y>0, Z>0 (threshold=0, direction=positive)
+// Zone config interface - X>0, Y>0, Z>0 (threshold=0, direction=positive)
 interface ZoneConfigUI {
   id: string
   axis: 'x' | 'y' | 'z'
@@ -24,7 +24,7 @@ interface ZoneConfigUI {
   enabled: boolean
 }
 
-// Default hardcoded zones for all axes > 0
+// Hardcoded zones for all axes > 0
 const DEFAULT_ZONES: ZoneConfigUI[] = [
   { id: 'z_x', axis: 'x', direction: 'positive', threshold: 0, offset: 0, enabled: true },
   { id: 'z_y', axis: 'y', direction: 'positive', threshold: 0, offset: 0, enabled: true },
@@ -32,157 +32,36 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
 ]
 
 interface SceneProps {
-  xThreshold: number
-  yThreshold: number
-  zThreshold: number
-  offsetPosX: number
-  offsetPosY: number
-  offsetPosZ: number
   zones?: ZoneConfigUI[]
 }
 
-function isVertexSelected(
-  x: number, y: number, z: number,
-  thresholdX: number, thresholdY: number, thresholdZ: number
-): boolean {
-  return x > thresholdX && y > thresholdY && z > thresholdZ
-}
-
-function applyOffset(
-  position: THREE.BufferAttribute,
-  index: number,
-  originalX: number, originalY: number, originalZ: number,
-  offsetX: number, offsetY: number, offsetZ: number
-): void {
-  position.setXYZ(index, originalX + offsetX, originalY + offsetY, originalZ + offsetZ)
-}
-
-// Apply zone-based selection and transformation
-// Each zone selects vertices independently based on axis threshold
-// Returns combined set of selected vertex indices
-function getZoneSelectedVertices(
-  originalPositions: THREE.Vector3[],
-  zones: ZoneConfigUI[]
-): Set<number> {
-  const selected = new Set<number>()
-  
-  for (let i = 0; i < originalPositions.length; i++) {
-    const pos = originalPositions[i]
-    
-    // Check each enabled zone
-    for (const zone of zones) {
-      if (!zone.enabled) continue
-      
-      let axisValue: number
-      switch (zone.axis) {
-        case 'x': axisValue = pos.x; break
-        case 'y': axisValue = pos.y; break
-        case 'z': axisValue = pos.z; break
-      }
-      
-      let shouldSelect: boolean
-      if (zone.direction === 'positive') {
-        shouldSelect = axisValue > zone.threshold
-      } else {
-        shouldSelect = axisValue < zone.threshold
-      }
-      
-      if (shouldSelect) {
-        selected.add(i)
-        break // Once selected by any zone, no need to check others
-      }
-    }
-  }
-  
-  return selected
-}
-
-// Apply zone transformations to geometry
-function applyZoneTransform(
-  posAttr: THREE.BufferAttribute,
-  originalPositions: THREE.Vector3[],
-  selectedVertices: Set<number>,
-  zones: ZoneConfigUI[]
-): void {
-  for (let i = 0; i < posAttr.count; i++) {
-    if (!selectedVertices.has(i)) continue
-    
-    const original = originalPositions[i]
-    if (!original) continue
-    
-    // Find all zones that this vertex belongs to
-    // and apply their offsets (can be multiple)
-    let offsetX = 0, offsetY = 0, offsetZ = 0
-    
-    for (const zone of zones) {
-      if (!zone.enabled) continue
-      
-      // Check if still in zone (using original position)
-      let axisValue: number
-      switch (zone.axis) {
-        case 'x': axisValue = original.x; break
-        case 'y': axisValue = original.y; break
-        case 'z': axisValue = original.z; break
-      }
-      
-      let belongsToZone: boolean
-      if (zone.direction === 'positive') {
-        belongsToZone = axisValue > zone.threshold
-      } else {
-        belongsToZone = axisValue < zone.threshold
-      }
-      
-      if (belongsToZone) {
-        // Add this zone's offset to cumulative offset
-        switch (zone.axis) {
-          case 'x': offsetX += zone.offset; break
-          case 'y': offsetY += zone.offset; break
-          case 'z': offsetZ += zone.offset; break
-        }
-      }
-    }
-    
-    // Apply cumulative offset
-    posAttr.setXYZ(i, original.x + offsetX, original.y + offsetY, original.z + offsetZ)
-  }
-}
-
 /**
- * GLTF Model with proper texture and geometry handling
+ * GLTF Model with zone-based selection (X>0, Y>0, Z>0)
  */
-function GLTFModel({ 
-  xThreshold, yThreshold, zThreshold, 
-  offsetPosX, offsetPosY, offsetPosZ,
-  zones = []
-}: SceneProps) {
+function GLTFModel({ zones = [] }: SceneProps) {
   const { scene } = useGLTF('/test3.gltf')
   
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   
-  // Process scene on load - fix textures and normalize geometry
+  // Process scene on load
   useEffect(() => {
-    // Fix textures for proper color space
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
-        // Handle both single material and material arrays
         const materials = Array.isArray(child.material) ? child.material : [child.material]
         
         materials.forEach((mat: THREE.Material) => {
           if (mat && 'map' in mat && (mat as THREE.MeshStandardMaterial).map) {
             const map = (mat as THREE.MeshStandardMaterial).map
             if (map) {
-              // Fix texture color space to SRGB
               map.colorSpace = THREE.SRGBColorSpace
               map.needsUpdate = true
             }
           }
-          // Mark material for update
           ;(mat as THREE.MeshStandardMaterial).needsUpdate = true
         })
       }
       
-      // Normalize geometry
       if (child instanceof THREE.Mesh) {
         child.updateWorldMatrix(true, false)
         const worldMatrix = child.matrixWorld.clone()
@@ -196,7 +75,7 @@ function GLTFModel({
     })
   }, [scene])
 
-  // Store original positions and geometry reference
+  // Store original positions
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
     let geometryRef: THREE.BufferGeometry | null = null
@@ -224,15 +103,11 @@ function GLTFModel({
     return positions
   }, [scene])
 
-  // Check if any zones are enabled
-  const hasActiveZones = zones.length > 0 && zones.some(z => z.enabled)
-
-  // Apply deformation - now includes zone-based transformation
+  // Apply zone-based transformation
   useEffect(() => {
     if (originalPositions.length === 0) return
 
     const selected: number[] = []
-    let vertexIndex = 0
 
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.geometry) {
@@ -241,37 +116,83 @@ function GLTFModel({
         
         if (!posAttr) return
         
-        // If we have active zones, use zone-based selection and transform
         const enabledZones = zones.filter(z => z.enabled)
+        const hasActiveZones = enabledZones.length > 0 && enabledZones.some(z => z.offset !== 0)
         
         if (hasActiveZones) {
-          // Reset to original positions first
+          // Reset to original positions
           for (let i = 0; i < posAttr.count; i++) {
-            const orig = originalPositions[vertexIndex + i]
+            const orig = originalPositions[i]
             if (orig) {
               posAttr.setXYZ(i, orig.x, orig.y, orig.z)
             }
           }
           
-          // Get zone-selected vertices
-          const zoneSelected = getZoneSelectedVertices(originalPositions, enabledZones)
-          
-          // Apply zone transformations
-          applyZoneTransform(posAttr, originalPositions, zoneSelected, enabledZones)
-          
-          // Add to selected indices for visualization
-          zoneSelected.forEach(idx => selected.push(idx))
-        } else {
-          // Use original threshold-based selection
-          for (let i = 0; i < posAttr.count; i++, vertexIndex++) {
-            const original = originalPositions[vertexIndex]
-            if (!original) continue
+          // Select vertices based on zones (X>0, Y>0, Z>0)
+          const selectedSet = new Set<number>()
+          for (let i = 0; i < originalPositions.length; i++) {
+            const pos = originalPositions[i]
             
-            if (isVertexSelected(original.x, original.y, original.z, xThreshold, yThreshold, zThreshold)) {
-              selected.push(vertexIndex)
-              applyOffset(posAttr, i, original.x, original.y, original.z, offsetPosX, offsetPosY, offsetPosZ)
-            } else {
-              posAttr.setXYZ(i, original.x, original.y, original.z)
+            for (const zone of enabledZones) {
+              if (zone.offset === 0) continue
+              
+              let axisValue: number
+              switch (zone.axis) {
+                case 'x': axisValue = pos.x; break
+                case 'y': axisValue = pos.y; break
+                case 'z': axisValue = pos.z; break
+              }
+              
+              const shouldSelect = zone.direction === 'positive' 
+                ? axisValue > zone.threshold 
+                : axisValue < zone.threshold
+              
+              if (shouldSelect) {
+                selectedSet.add(i)
+                break
+              }
+            }
+          }
+          
+          // Apply offsets to selected vertices
+          for (const idx of selectedSet) {
+            const orig = originalPositions[idx]
+            if (!orig) continue
+            
+            let offsetX = 0, offsetY = 0, offsetZ = 0
+            
+            for (const zone of enabledZones) {
+              if (zone.offset === 0) continue
+              
+              let axisValue: number
+              switch (zone.axis) {
+                case 'x': axisValue = orig.x; break
+                case 'y': axisValue = orig.y; break
+                case 'z': axisValue = orig.z; break
+              }
+              
+              const belongsToZone = zone.direction === 'positive'
+                ? axisValue > zone.threshold
+                : axisValue < zone.threshold
+              
+              if (belongsToZone) {
+                switch (zone.axis) {
+                  case 'x': offsetX += zone.offset; break
+                  case 'y': offsetY += zone.offset; break
+                  case 'z': offsetZ += zone.offset; break
+                }
+              }
+            }
+            
+            posAttr.setXYZ(idx, orig.x + offsetX, orig.y + offsetY, orig.z + offsetZ)
+            selected.push(idx)
+          }
+        } else {
+          // No active offsets - reset positions
+          for (let i = 0; i < posAttr.count; i++) {
+            const orig = originalPositions[i]
+            if (orig) {
+              posAttr.setXYZ(i, orig.x, orig.y, orig.z)
             }
           }
         }
@@ -282,7 +203,7 @@ function GLTFModel({
     })
 
     setSelectedIndices(selected)
-  }, [scene, originalPositions, xThreshold, yThreshold, zThreshold, offsetPosX, offsetPosY, offsetPosZ, zones, hasActiveZones])
+  }, [scene, originalPositions, zones])
 
   return (
     <group>
@@ -306,7 +227,7 @@ function Loader() {
   )
 }
 
-function Scene3D({ xThreshold, yThreshold, zThreshold, offsetPosX, offsetPosY, offsetPosZ, showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
   return (
     <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       <Canvas 
@@ -320,15 +241,7 @@ function Scene3D({ xThreshold, yThreshold, zThreshold, offsetPosX, offsetPosY, o
         <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
         
         <Suspense fallback={<Loader />}>
-          <GLTFModel 
-            xThreshold={xThreshold} 
-            yThreshold={yThreshold} 
-            zThreshold={zThreshold} 
-            offsetPosX={offsetPosX} 
-            offsetPosY={offsetPosY} 
-            offsetPosZ={offsetPosZ}
-            zones={zones}
-          />
+          <GLTFModel zones={zones} />
           {showGizmos && <GizmoControls />}
         </Suspense>
         
@@ -346,14 +259,7 @@ export const ExperimentPage: React.FC = () => {
   const [variant, setVariant] = useState<VariantConfig | null>(null)
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left')
   
-  // Offset state for each axis (zones are hardcoded: X>0, Y>0, Z>0)
-  const [offsets, setOffsets] = useState({
-    x: 0,
-    y: 0,
-    z: 0
-  })
-  
-  const { logFinish } = useStore()
+  const { xOffset, yOffset, zOffset, logFinish } = useStore()
 
   useEffect(() => {
     setSidebarPosition(getSidebarPosition())
@@ -377,17 +283,20 @@ export const ExperimentPage: React.FC = () => {
     analytics.trackFinish()
   }
 
-  // Update offset for specific axis
-  const updateOffset = useCallback((axis: 'x' | 'y' | 'z', value: number) => {
-    setOffsets(prev => ({ ...prev, [axis]: value }))
-  }, [])
-
-  // Create zone configs from offsets - always use all 3 axes with X>0, Y>0, Z>0
-  const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => ({
-    ...zone,
-    offset: offsets[zone.axis],
-    enabled: offsets[zone.axis] !== 0 // Only enable if offset is non-zero
-  }))
+  // Create zone configs from store offsets - zones are X>0, Y>0, Z>0
+  const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {
+    let offset = 0
+    switch (zone.axis) {
+      case 'x': offset = xOffset; break
+      case 'y': offset = yOffset; break
+      case 'z': offset = zOffset; break
+    }
+    return {
+      ...zone,
+      offset,
+      enabled: offset !== 0
+    }
+  })
 
   if (!variant) {
     return (
@@ -405,12 +314,6 @@ export const ExperimentPage: React.FC = () => {
       <ModalSystem showModals={showModals} />
       
       <Scene3D 
-        xThreshold={0}
-        yThreshold={0}
-        zThreshold={0}
-        offsetPosX={0}
-        offsetPosY={0}
-        offsetPosZ={0}
         showGizmos={showGizmos}
         zones={zoneConfigs}
       />
@@ -419,74 +322,13 @@ export const ExperimentPage: React.FC = () => {
         <Sidebar position={variant.sidebarPosition}>
           <SidebarHeader title="3D Configurator" subtitle={getControlDescription(variant.controlType)} />
           <SidebarContent>
-            <SidebarSection title="Offset Controls">
-              <p className="text-xs text-slate-500 mb-4">Vertices with coordinates X{' > '}0, Y{' > '}0, Z{' > '}0 will be shifted</p>
-              
-              {/* X Offset Slider */}
-              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-blue-400">Offset X</span>
-                  <span className="text-xs text-slate-400">X{' > '}0</span>
-                </div>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.01"
-                  value={offsets.x}
-                  onChange={(e) => updateOffset('x', parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>-2</span>
-                  <span className="text-blue-400 font-medium">{offsets.x.toFixed(2)}</span>
-                  <span>2</span>
-                </div>
-              </div>
-              
-              {/* Y Offset Slider */}
-              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-green-400">Offset Y</span>
-                  <span className="text-xs text-slate-400">Y{' > '}0</span>
-                </div>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.01"
-                  value={offsets.y}
-                  onChange={(e) => updateOffset('y', parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>-2</span>
-                  <span className="text-green-400 font-medium">{offsets.y.toFixed(2)}</span>
-                  <span>2</span>
-                </div>
-              </div>
-              
-              {/* Z Offset Slider */}
-              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-purple-400">Offset Z</span>
-                  <span className="text-xs text-slate-400">Z{' > '}0</span>
-                </div>
-                <input
-                  type="range"
-                  min="-2"
-                  max="2"
-                  step="0.01"
-                  value={offsets.z}
-                  onChange={(e) => updateOffset('z', parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>-2</span>
-                  <span className="text-purple-400 font-medium">{offsets.z.toFixed(2)}</span>
-                  <span>2</span>
-                </div>
-              </div>
+            <SidebarSection title="Zone Selection">
+              <p className="text-xs text-slate-500 mb-4">Vertices with coordinates X 0, Y 0, Z 0 will be shifted</p>
+              <ControlRenderer 
+                variant={variant.controlType === 'gizmo' ? 'sliders' : variant.controlType} 
+                showThresholds={false}
+                showOffsets={true}
+              />
             </SidebarSection>
           </SidebarContent>
           <SidebarFooter>

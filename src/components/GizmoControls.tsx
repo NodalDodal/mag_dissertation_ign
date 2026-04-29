@@ -37,8 +37,21 @@ function GizmoArrow({ axis, position, onDrag }: GizmoProps) {
   const handlePointerMove = useCallback((e: any) => {
     if (!isDragging) return
     
-    const delta = (e.point.y - startPos.current.y) * 2
-    onDrag(axis, delta)
+    // Calculate delta based on axis
+    let delta = 0
+    switch (axis) {
+      case 'x':
+        delta = e.point.x - startPos.current.x
+        break
+      case 'y':
+        delta = e.point.y - startPos.current.y
+        break
+      case 'z':
+        delta = e.point.z - startPos.current.z
+        break
+    }
+    
+    onDrag(axis, delta * 2) // Scale factor
     startPos.current.copy(e.point)
   }, [isDragging, onDrag, axis])
 
@@ -72,6 +85,8 @@ function GizmoArrow({ axis, position, onDrag }: GizmoProps) {
 
 /**
  * Gizmo Controls - 3D arrows for X, Y, Z axis manipulation
+ * Controls offsetX, offsetY, offsetZ in store
+ * Vertices with X>0, Y>0, Z>0 will be shifted by these offsets
  */
 export const GizmoControls: React.FC = () => {
   const { xOffset, yOffset, zOffset, setOffset } = useStore()

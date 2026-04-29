@@ -2,16 +2,14 @@ import React, { useState, useCallback } from 'react'
 import { useStore } from '../store/useStore'
 import { analytics } from '../utils/analytics'
 
+export type ControlType = 'inputs' | 'sliders' | 'mixed' | 'hybrid'
+
 interface ControlItem {
   id: string
   label: string
   sublabel?: string
   axis: 'x' | 'y' | 'z'
   type: 'threshold' | 'offset'
-}
-
-interface ControlRendererProps {
-  variant: 'inputs' | 'sliders' | 'mixed' | 'hybrid'
 }
 
 /**
@@ -36,7 +34,7 @@ function getControlItems(): ControlItem[] {
     items.push({
       id: `offset-${axis}`,
       label: `Offset ${axis.toUpperCase()}`,
-      sublabel: `Position adjustment along ${axis} axis`,
+      sublabel: `Position adjustment along ${axis} axis (X${'>'}0 zone)`,
       axis,
       type: 'offset',
     })
@@ -78,13 +76,15 @@ function SliderControlComponent({ item, value, onChange }: { item: ControlItem; 
   const max = item.type === 'offset' ? 2 : 2
   const step = item.type === 'offset' ? 0.01 : 0.05
 
+  // Color based on axis
+  const accentColor = item.axis === 'x' ? 'accent-blue-500' : item.axis === 'y' ? 'accent-green-500' : 'accent-purple-500'
+  const valueColor = item.axis === 'x' ? 'text-blue-400' : item.axis === 'y' ? 'text-green-400' : 'text-purple-400'
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 p-3 bg-slate-700/30 rounded-lg border border-white/10">
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
-        <span className="text-xs font-mono text-blue-400 bg-slate-700/50 px-2.5 py-1 rounded-lg">
-          {value.toFixed(2)}
-        </span>
+        <span className="text-xs text-slate-400">{item.axis.toUpperCase()}{' > '}0</span>
       </div>
       <input
         type="range"
@@ -93,9 +93,13 @@ function SliderControlComponent({ item, value, onChange }: { item: ControlItem; 
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer
-                   accent-blue-500 hover:accent-blue-400"
+        className={`w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer ${accentColor}`}
       />
+      <div className="flex justify-between text-xs text-slate-500">
+        <span>{min}</span>
+        <span className={`font-medium ${valueColor}`}>{value.toFixed(2)}</span>
+        <span>{max}</span>
+      </div>
     </div>
   )
 }
@@ -149,17 +153,31 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
   )
 }
 
+interface ControlRendererProps {
+  variant: ControlType
+  showThresholds?: boolean
+  showOffsets?: boolean
+}
+
 /**
  * Main Control Renderer - Renders controls based on variant
  */
-export const ControlRenderer: React.FC<ControlRendererProps> = ({ variant }) => {
+export const ControlRenderer: React.FC<ControlRendererProps> = ({ 
+  variant, 
+  showThresholds = true,
+  showOffsets = true 
+}) => {
   const { 
     xThreshold, yThreshold, zThreshold,
     xOffset, yOffset, zOffset,
     setThreshold, setOffset,
   } = useStore()
 
-  const items = getControlItems()
+  const items = getControlItems().filter(item => {
+    if (item.type === 'threshold' && !showThresholds) return false
+    if (item.type === 'offset' && !showOffsets) return false
+    return true
+  })
 
   // Shuffle for mixed variant
   const shuffledItems = variant === 'mixed' 
