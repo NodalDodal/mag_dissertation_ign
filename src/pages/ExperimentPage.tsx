@@ -17,6 +17,7 @@ import { analytics } from '../utils/analytics'
 import { initializeSceneUVs, correctSceneUVs, resetSceneUVs } from '../utils/uvCorrector'
 import { MATERIALS } from '../utils/materialConfig'
 
+
 // Zone config interface
 interface ZoneConfigUI {
   id: string
