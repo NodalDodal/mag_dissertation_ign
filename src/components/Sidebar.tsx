@@ -1,21 +1,54 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { SidebarPosition } from '../utils/variantGenerator'
 
 interface SidebarProps {
   position: SidebarPosition
   children: React.ReactNode
+  defaultOpen?: boolean
 }
 
 /**
- * Sidebar Component - Supports left/right positions
+ * Collapsible Sidebar Component - Supports left/right positions with slide animation
  */
-export const Sidebar: React.FC<SidebarProps> = ({ position, children }) => {
-  const positionClasses = position === 'left' 
-    ? 'left-4 top-4' 
-    : 'right-4 top-4'
+export const Sidebar: React.FC<SidebarProps> = ({ position, children, defaultOpen = true }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(defaultOpen)
+
+  const isLeft = position === 'left'
+  
+  // Animation classes based on position and state
+  const transformClass = isLeft
+    ? (isSidebarOpen ? 'translate-x-0' : '-translate-x-full')
+    : (isSidebarOpen ? 'translate-x-0' : 'translate-x-full')
+
+  // Position classes for the fixed container
+  const containerPositionClass = isLeft ? 'left-0' : 'right-0'
+
+  // Toggle button position - sticks to the edge of the sidebar
+  const buttonPositionClass = isLeft ? 'right-[-44px]' : 'left-[-44px]'
+
+  // Arrow icon rotation - chevron points toward sidebar when open
+  const arrowRotation = isSidebarOpen ? (isLeft ? 'rotate-0' : 'rotate-180') : (isLeft ? 'rotate-180' : 'rotate-0')
 
   return (
-    <div className={`fixed ${positionClasses} z-20 w-[340px]`}>
+    <div 
+      className={`fixed top-4 ${containerPositionClass} z-20 w-[340px] transition-transform duration-300 ease-in-out ${transformClass}`}
+    >
+      {/* Toggle Button - Always visible, attached to sidebar edge */}
+      <button
+        onClick={() => setIsSidebarOpen(prev => !prev)}
+        className={`absolute top-1/2 -translate-y-1/2 ${buttonPositionClass} w-10 h-10 rounded-full bg-slate-700/70 backdrop-blur-md border border-white/10 shadow-lg flex items-center justify-center transition-all duration-200 hover:bg-slate-600/80 hover:scale-105 active:scale-95 text-white`}
+        aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
+      >
+        <svg 
+          className={`w-5 h-5 transition-transform duration-300 ${arrowRotation}`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
       <div style={{ padding: 2 }} className="p-4 bg-slate-800/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden transition-all duration-300 max-h-[calc(100vh-8rem)] overflow-y-auto">
         {children}
       </div>
