@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo, Suspense, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, useGLTF, Environment } from '@react-three/drei'
+import { useGLTF, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 
 import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter } from '../components/Sidebar'
@@ -9,12 +9,13 @@ import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { ModalSystem } from '../components/ModalSystem'
 import { SelectionBox } from '../components/SelectionBox'
+import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
 import { getVariantByPage, needsSidebar, getControlDescription, type VariantConfig } from '../utils/variantGenerator'
 import { getSidebarPosition } from '../utils/sidebarPosition'
 import { analytics } from '../utils/analytics'
 
-// Zone config interface - X>0, Y>0, Z>0 (threshold=0, direction=positive)
+// Zone config interface
 interface ZoneConfigUI {
   id: string
   axis: 'x' | 'y' | 'z'
@@ -24,7 +25,6 @@ interface ZoneConfigUI {
   enabled: boolean
 }
 
-// Hardcoded zones for all axes > 0
 const DEFAULT_ZONES: ZoneConfigUI[] = [
   { id: 'z_x', axis: 'x', direction: 'positive', threshold: 0, offset: 0, enabled: true },
   { id: 'z_y', axis: 'y', direction: 'positive', threshold: 0, offset: 0, enabled: true },
@@ -35,21 +35,15 @@ interface SceneProps {
   zones?: ZoneConfigUI[]
 }
 
-/**
- * GLTF Model with zone-based selection (X>0, Y>0, Z>0)
- */
 function GLTFModel({ zones = [] }: SceneProps) {
   const { scene } = useGLTF('/test3.gltf')
-  
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   
-  // Process scene on load
   useEffect(() => {
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.material) {
         const materials = Array.isArray(child.material) ? child.material : [child.material]
-        
         materials.forEach((mat: THREE.Material) => {
           if (mat && 'map' in mat && (mat as THREE.MeshStandardMaterial).map) {
             const map = (mat as THREE.MeshStandardMaterial).map
@@ -61,7 +55,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
           ;(mat as THREE.MeshStandardMaterial).needsUpdate = true
         })
       }
-      
       if (child instanceof THREE.Mesh) {
         child.updateWorldMatrix(true, false)
         const worldMatrix = child.matrixWorld.clone()
@@ -75,16 +68,13 @@ function GLTFModel({ zones = [] }: SceneProps) {
     })
   }, [scene])
 
-  // Store original positions
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
     let geometryRef: THREE.BufferGeometry | null = null
-    
     scene.traverse((child) => {
       if (child instanceof THREE.Mesh && child.geometry) {
         const geometry = child.geometry
         if (!geometryRef) geometryRef = geometry
-        
         const posAttr = geometry.attributes.position
         if (posAttr) {
           for (let i = 0; i < posAttr.count; i++) {
@@ -95,15 +85,10 @@ function GLTFModel({ zones = [] }: SceneProps) {
         }
       }
     })
-    
-    if (geometryRef) {
-      setModelGeometry(geometryRef)
-    }
-    
+    if (geometryRef) setModelGeometry(geometryRef)
     return positions
   }, [scene])
 
-  // Apply zone-based transformation
   useEffect(() => {
     if (originalPositions.length === 0) return
 
@@ -113,68 +98,46 @@ function GLTFModel({ zones = [] }: SceneProps) {
       if (child instanceof THREE.Mesh && child.geometry) {
         const geometry = child.geometry
         const posAttr = geometry.attributes.position
-        
         if (!posAttr) return
         
         const enabledZones = zones.filter(z => z.enabled)
         const hasActiveZones = enabledZones.length > 0 && enabledZones.some(z => z.offset !== 0)
         
         if (hasActiveZones) {
-          // Reset to original positions
           for (let i = 0; i < posAttr.count; i++) {
             const orig = originalPositions[i]
-            if (orig) {
-              posAttr.setXYZ(i, orig.x, orig.y, orig.z)
-            }
+            if (orig) posAttr.setXYZ(i, orig.x, orig.y, orig.z)
           }
           
-          // Select vertices based on zones (X>0, Y>0, Z>0)
           const selectedSet = new Set<number>()
           for (let i = 0; i < originalPositions.length; i++) {
             const pos = originalPositions[i]
-            
             for (const zone of enabledZones) {
               if (zone.offset === 0) continue
-              
               let axisValue: number
               switch (zone.axis) {
                 case 'x': axisValue = pos.x; break
                 case 'y': axisValue = pos.y; break
                 case 'z': axisValue = pos.z; break
               }
-              
-              const shouldSelect = zone.direction === 'positive' 
-                ? axisValue > zone.threshold 
-                : axisValue < zone.threshold
-              
-              if (shouldSelect) {
-                selectedSet.add(i)
-                break
-              }
+              const shouldSelect = zone.direction === 'positive' ? axisValue > zone.threshold : axisValue < zone.threshold
+              if (shouldSelect) { selectedSet.add(i); break }
             }
           }
           
-          // Apply offsets to selected vertices
           for (const idx of selectedSet) {
             const orig = originalPositions[idx]
             if (!orig) continue
-            
             let offsetX = 0, offsetY = 0, offsetZ = 0
-            
             for (const zone of enabledZones) {
               if (zone.offset === 0) continue
-              
               let axisValue: number
               switch (zone.axis) {
                 case 'x': axisValue = orig.x; break
                 case 'y': axisValue = orig.y; break
                 case 'z': axisValue = orig.z; break
               }
-              
-              const belongsToZone = zone.direction === 'positive'
-                ? axisValue > zone.threshold
-                : axisValue < zone.threshold
-              
+              const belongsToZone = zone.direction === 'positive' ? axisValue > zone.threshold : axisValue < zone.threshold
               if (belongsToZone) {
                 switch (zone.axis) {
                   case 'x': offsetX += zone.offset; break
@@ -183,17 +146,13 @@ function GLTFModel({ zones = [] }: SceneProps) {
                 }
               }
             }
-            
             posAttr.setXYZ(idx, orig.x + offsetX, orig.y + offsetY, orig.z + offsetZ)
             selected.push(idx)
           }
         } else {
-          // No active offsets - reset positions
           for (let i = 0; i < posAttr.count; i++) {
             const orig = originalPositions[i]
-            if (orig) {
-              posAttr.setXYZ(i, orig.x, orig.y, orig.z)
-            }
+            if (orig) posAttr.setXYZ(i, orig.x, orig.y, orig.z)
           }
         }
         
@@ -208,9 +167,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
   return (
     <group>
       <primitive object={scene} />
-      {modelGeometry && selectedIndices.length > 0 && (
-        <SelectionBox geometry={modelGeometry} selectedIndices={selectedIndices} />
-      )}
+      {modelGeometry && selectedIndices.length > 0 && <SelectionBox geometry={modelGeometry} selectedIndices={selectedIndices} />}
       <axesHelper args={[2]} />
     </group>
   )
@@ -227,6 +184,22 @@ function Loader() {
   )
 }
 
+// SceneContent with OrbitControlsWrapper INSIDE Canvas
+function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+  return (
+    <OrbitControlsWrapper>
+      <Environment preset="city" />
+      <ambientLight intensity={0.4} color="#ffffff" />
+      <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <Suspense fallback={<Loader />}>
+        <GLTFModel zones={zones} />
+        {showGizmos && <GizmoControls />}
+      </Suspense>
+      <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
+    </OrbitControlsWrapper>
+  )
+}
+
 function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
   return (
     <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -236,17 +209,7 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
         className="w-full h-full" 
         shadows
       >
-        <Environment preset="city" />
-        <ambientLight intensity={0.4} color="#ffffff" />
-        <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-        
-        <Suspense fallback={<Loader />}>
-          <GLTFModel zones={zones} />
-          {showGizmos && <GizmoControls />}
-        </Suspense>
-        
-        <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
-        <OrbitControls enableDamping dampingFactor={0.05} rotateSpeed={0.5} zoomSpeed={0.5} minDistance={2} maxDistance={20} enablePan={true} panSpeed={0.5} />
+        <SceneContent showGizmos={showGizmos} zones={zones} />
       </Canvas>
     </div>
   )
@@ -257,13 +220,8 @@ export const ExperimentPage: React.FC = () => {
   const navigate = useNavigate()
   const [showModals] = useState(true)
   const [variant, setVariant] = useState<VariantConfig | null>(null)
-  const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left')
   
   const { xOffset, yOffset, zOffset, logFinish } = useStore()
-
-  useEffect(() => {
-    setSidebarPosition(getSidebarPosition())
-  }, [])
 
   useEffect(() => {
     if (id) {
@@ -283,7 +241,6 @@ export const ExperimentPage: React.FC = () => {
     analytics.trackFinish()
   }
 
-  // Create zone configs from store offsets - zones are X>0, Y>0, Z>0
   const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {
     let offset = 0
     switch (zone.axis) {
@@ -291,11 +248,7 @@ export const ExperimentPage: React.FC = () => {
       case 'y': offset = yOffset; break
       case 'z': offset = zOffset; break
     }
-    return {
-      ...zone,
-      offset,
-      enabled: offset !== 0
-    }
+    return { ...zone, offset, enabled: offset !== 0 }
   })
 
   if (!variant) {
@@ -312,11 +265,7 @@ export const ExperimentPage: React.FC = () => {
   return (
     <div className="w-full h-screen bg-slate-900 relative overflow-hidden">
       <ModalSystem showModals={showModals} />
-      
-      <Scene3D 
-        showGizmos={showGizmos}
-        zones={zoneConfigs}
-      />
+      <Scene3D showGizmos={showGizmos} zones={zoneConfigs} />
       
       {hasSidebar && (
         <Sidebar position={variant.sidebarPosition}>
@@ -332,7 +281,7 @@ export const ExperimentPage: React.FC = () => {
             </SidebarSection>
           </SidebarContent>
           <SidebarFooter>
-            <p className="text-xs text-slate-500 text-center">Drag to rotate • Scroll to zoom</p>
+            <p className="text-xs text-slate-500 text-center">Drag to rotate - Scroll to zoom</p>
           </SidebarFooter>
         </Sidebar>
       )}
