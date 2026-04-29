@@ -14,7 +14,7 @@ import { getVariantByPage, needsSidebar, getControlDescription, type VariantConf
 import { getSidebarPosition } from '../utils/sidebarPosition'
 import { analytics } from '../utils/analytics'
 
-// Zone config interface (threshold=0, direction=positive)
+// Hardcoded zone config - X>0, Y>0, Z>0 (threshold=0, direction=positive)
 interface ZoneConfigUI {
   id: string
   axis: 'x' | 'y' | 'z'
@@ -23,6 +23,13 @@ interface ZoneConfigUI {
   offset: number
   enabled: boolean
 }
+
+// Default hardcoded zones for all axes > 0
+const DEFAULT_ZONES: ZoneConfigUI[] = [
+  { id: 'z_x', axis: 'x', direction: 'positive', threshold: 0, offset: 0, enabled: true },
+  { id: 'z_y', axis: 'y', direction: 'positive', threshold: 0, offset: 0, enabled: true },
+  { id: 'z_z', axis: 'z', direction: 'positive', threshold: 0, offset: 0, enabled: true },
+]
 
 interface SceneProps {
   xThreshold: number
@@ -332,12 +339,6 @@ function Scene3D({ xThreshold, yThreshold, zThreshold, offsetPosX, offsetPosY, o
   )
 }
 
-// Simple axis offset config - for custom offset controls if needed
-interface AxisOffset {
-  axis: 'x' | 'y' | 'z'
-  offset: number
-}
-
 export const ExperimentPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -345,12 +346,14 @@ export const ExperimentPage: React.FC = () => {
   const [variant, setVariant] = useState<VariantConfig | null>(null)
   const [sidebarPosition, setSidebarPosition] = useState<'left' | 'right'>('left')
   
-  // Zone state - moved to top before conditional returns
-  const [zones, setZones] = useState<{id: string, axis: 'x'|'y'|'z', threshold: number, offset: number}[]>([
-    {id: 'z1', axis: 'y', threshold: 0, offset: 0}
-  ])
+  // Offset state for each axis (zones are hardcoded: X>0, Y>0, Z>0)
+  const [offsets, setOffsets] = useState({
+    x: 0,
+    y: 0,
+    z: 0
+  })
   
-  const { xOffset, yOffset, zOffset, xThreshold, yThreshold, zThreshold, logFinish } = useStore()
+  const { logFinish } = useStore()
 
   useEffect(() => {
     setSidebarPosition(getSidebarPosition())
@@ -374,33 +377,17 @@ export const ExperimentPage: React.FC = () => {
     analytics.trackFinish()
   }
 
-  // Handle adding new zone
-  const addZone = useCallback(() => {
-    const newId = `z${Date.now()}`
-    setZones(prev => [...prev, {id: newId, axis: 'x', threshold: 0, offset: 0}])
+  // Update offset for specific axis
+  const updateOffset = useCallback((axis: 'x' | 'y' | 'z', value: number) => {
+    setOffsets(prev => ({ ...prev, [axis]: value }))
   }, [])
 
-  // Handle zone change - apply immediately
-  const updateZone = useCallback((id: string, field: 'axis'|'threshold'|'offset', value: any) => {
-    setZones(prev => prev.map(z => z.id === id ? {...z, [field]: value} : z))
-  }, [])
-
-  // Handle remove zone
-  const removeZone = useCallback((id: string) => {
-    setZones(prev => prev.filter(z => z.id !== id))
-  }, [])
-
-  // Convert zones to zone config for 3D scene
-  const zoneConfigs = zones
-    .filter(z => z.offset !== 0)
-    .map(z => ({
-      id: z.id,
-      axis: z.axis,
-      direction: 'positive' as const,
-      threshold: z.threshold,
-      offset: z.offset,
-      enabled: true
-    }))
+  // Create zone configs from offsets - always use all 3 axes with X>0, Y>0, Z>0
+  const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => ({
+    ...zone,
+    offset: offsets[zone.axis],
+    enabled: offsets[zone.axis] !== 0 // Only enable if offset is non-zero
+  }))
 
   if (!variant) {
     return (
@@ -432,52 +419,74 @@ export const ExperimentPage: React.FC = () => {
         <Sidebar position={variant.sidebarPosition}>
           <SidebarHeader title="3D Configurator" subtitle={getControlDescription(variant.controlType)} />
           <SidebarContent>
-            <SidebarSection title="Selection Zones">
-              {zones.map((zone, idx) => (
-                <div key={zone.id} className="p-3 bg-slate-700/30 rounded-lg mb-2 border border-white/10">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-slate-400">Zone {idx + 1}</span>
-                    <button onClick={() => removeZone(zone.id)} className="text-red-400 text-xs">✕</button>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <select 
-                      value={zone.axis}
-                      onChange={(e) => updateZone(zone.id, 'axis', e.target.value)}
-                      className="bg-slate-800 rounded px-2 py-1 text-xs"
-                    >
-                      <option value="x">X</option>
-                      <option value="y">Y</option>
-                      <option value="z">Z</option>
-                    </select>
-                    
-                    <input
-                      type="number"
-                      step={0.1}
-                      placeholder="Threshold"
-                      value={zone.threshold}
-                      onChange={(e) => updateZone(zone.id, 'threshold', parseFloat(e.target.value) || 0)}
-                      className="bg-slate-800 rounded px-2 py-1 text-xs"
-                    />
-                    
-                    <input
-                      type="number"
-                      step={0.1}
-                      placeholder="Offset"
-                      value={zone.offset}
-                      onChange={(e) => updateZone(zone.id, 'offset', parseFloat(e.target.value) || 0)}
-                      className="bg-slate-800 rounded px-2 py-1 text-xs"
-                    />
-                  </div>
-                </div>
-              ))}
+            <SidebarSection title="Offset Controls">
+              <p className="text-xs text-slate-500 mb-4">Vertices with coordinates X{' > '}0, Y{' > '}0, Z{' > '}0 will be shifted</p>
               
-              <button 
-                onClick={addZone}
-                className="w-full py-2 bg-blue-500/20 text-blue-400 text-sm rounded-lg border border-blue-500/30"
-              >
-                + Add Zone
-              </button>
+              {/* X Offset Slider */}
+              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-blue-400">Offset X</span>
+                  <span className="text-xs text-slate-400">X{' > '}0</span>
+                </div>
+                <input
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.01"
+                  value={offsets.x}
+                  onChange={(e) => updateOffset('x', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>-2</span>
+                  <span className="text-blue-400 font-medium">{offsets.x.toFixed(2)}</span>
+                  <span>2</span>
+                </div>
+              </div>
+              
+              {/* Y Offset Slider */}
+              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-green-400">Offset Y</span>
+                  <span className="text-xs text-slate-400">Y{' > '}0</span>
+                </div>
+                <input
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.01"
+                  value={offsets.y}
+                  onChange={(e) => updateOffset('y', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>-2</span>
+                  <span className="text-green-400 font-medium">{offsets.y.toFixed(2)}</span>
+                  <span>2</span>
+                </div>
+              </div>
+              
+              {/* Z Offset Slider */}
+              <div className="mb-4 p-3 bg-slate-700/30 rounded-lg border border-white/10">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-purple-400">Offset Z</span>
+                  <span className="text-xs text-slate-400">Z{' > '}0</span>
+                </div>
+                <input
+                  type="range"
+                  min="-2"
+                  max="2"
+                  step="0.01"
+                  value={offsets.z}
+                  onChange={(e) => updateOffset('z', parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                />
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
+                  <span>-2</span>
+                  <span className="text-purple-400 font-medium">{offsets.z.toFixed(2)}</span>
+                  <span>2</span>
+                </div>
+              </div>
             </SidebarSection>
           </SidebarContent>
           <SidebarFooter>
