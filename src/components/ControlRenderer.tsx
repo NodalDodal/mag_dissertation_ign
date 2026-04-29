@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { analytics } from '../utils/analytics'
-import { MATERIALS, getMaterialKeys, getMaterialName } from '../utils/materialConfig'
+import { getMaterialKeys, getMaterialName } from '../utils/materialConfig'
 
 export type ControlType = 'inputs' | 'sliders' | 'mixed' | 'hybrid'
 

@@ -73,7 +73,7 @@ export const useStore = create<ConfiguratorState>((set, get) => ({
   setXThreshold: (value) => set({ xThreshold: value }),
   setYThreshold: (value) => set({ yThreshold: value }),
   setZThreshold: (value) => set({ zThreshold: value }),
-  setUVCorrectionStrength: (value) => set({ uvCorrectionStrength: 1 }), // Always 100%
+  setUVCorrectionStrength: (value) => set({ uvCorrectionStrength: value }),
   setSelectedMaterial: (material) => set({ selectedMaterial: material }),
   
   setOffset: (axis, value) => {
