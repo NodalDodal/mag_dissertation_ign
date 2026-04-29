@@ -9,7 +9,6 @@ import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { GizmoDragController } from '../components/GizmoSystem'
 import { ModalSystem } from '../components/ModalSystem'
-import { SelectionBox } from '../components/SelectionBox'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
 import { getVariantByPage, needsSidebar, getControlDescription, type VariantConfig } from '../utils/variantGenerator'
@@ -221,7 +220,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
   return (
     <group>
       <primitive object={scene} />
-      {modelGeometry && selectedIndices.length > 0 && <SelectionBox geometry={modelGeometry} selectedIndices={selectedIndices} />}
       <axesHelper args={[2]} />
     </group>
   )
