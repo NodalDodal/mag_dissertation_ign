@@ -88,6 +88,9 @@ function getControlItems(): ControlItem[] {
 }
 
 function InputControl({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
+  const min = item.type === 'offset' ? 0.3 : undefined
+  const max = 2
+  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value) || 0
     onChange(val)
@@ -98,7 +101,9 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
       <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
       <input
         type="number"
-        step={5}
+        min={min}
+        max={max}
+        step={0.1}
         value={value}
         onChange={handleChange}
         className="w-full bg-slate-900/70 rounded-xl px-4 py-3 text-slate-200 
@@ -110,7 +115,7 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
 }
 
 function SliderControlComponent({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
-  const min = -2
+  const min = item.type === 'offset' ? 0.3 : -2
   const max = 2
   const step = 0.01
 
@@ -162,7 +167,7 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
     setLocalValue(String(value))
   }, [value])
 
-  const min = -2
+  const min = item.type === 'offset' ? 0.3 : -2
   const max = 2
 
   return (
@@ -171,7 +176,9 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
         <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
         <input
           type="number"
-          step={5}
+          min={min}
+          max={max}
+          step={0.1}
           value={localValue}
           onChange={handleInputChange}
           className="w-20 bg-slate-900/70 rounded-lg px-2 py-1 text-sm text-slate-200 text-right
