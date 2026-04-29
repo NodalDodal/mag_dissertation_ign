@@ -14,7 +14,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ position, children, defaultOpe
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultOpen)
 
   const isLeft = position === 'left'
-  
+
   // Animation classes based on position and state
   const transformClass = isLeft
     ? (isSidebarOpen ? 'translate-x-0' : '-translate-x-full')
