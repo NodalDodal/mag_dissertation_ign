@@ -16,18 +16,12 @@ interface ControlItem {
 }
 
 const STORAGE_KEY = 'variant3_layout'
-const GT_SYMBOL = String.fromCharCode(62) // ">" character
+const GT_SYMBOL = String.fromCharCode(62)
 
-/**
- * Generate random layout for mixed variant
- */
 function generateRandomLayout(): ControlStyle {
   return Math.random() > 0.5 ? 'slider' : 'input'
 }
 
-/**
- * Get or create persistent layout for mixed variant
- */
 function getMixedLayout(count: number): ControlStyle[] {
   if (typeof window === 'undefined') {
     return Array.from({ length: count }, generateRandomLayout)
@@ -55,13 +49,9 @@ function getMixedLayout(count: number): ControlStyle[] {
   return layout
 }
 
-/**
- * Generate control items for thresholds and offsets
- */
 function getControlItems(): ControlItem[] {
   const items: ControlItem[] = []
   
-  // Threshold controls
   ;(['x', 'y', 'z'] as const).forEach((axis) => {
     items.push({
       id: `threshold-${axis}`,
@@ -73,7 +63,6 @@ function getControlItems(): ControlItem[] {
     })
   })
   
-  // Offset controls
   ;(['x', 'y', 'z'] as const).forEach((axis) => {
     items.push({
       id: `offset-${axis}`,
@@ -88,9 +77,6 @@ function getControlItems(): ControlItem[] {
   return items
 }
 
-/**
- * Text Input Control
- */
 function InputControl({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value) || 0
@@ -113,9 +99,6 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
   )
 }
 
-/**
- * Slider Control
- */
 function SliderControlComponent({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
   const min = -2
   const max = 2
@@ -148,9 +131,6 @@ function SliderControlComponent({ item, value, onChange }: { item: ControlItem; 
   )
 }
 
-/**
- * Hybrid Control (Slider + Input synced)
- */
 function HybridControl({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
   const [localValue, setLocalValue] = useState(String(value))
 
@@ -201,15 +181,44 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
   )
 }
 
+/**
+ * UV Correction Slider Component
+ */
+function UVCorrectionSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const min = 0
+  const max = 1
+  const step = 0.1
+
+  return (
+    <div className="space-y-3 p-3 bg-slate-700/30 rounded-lg border border-white/10">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-slate-300 tracking-wide">UV Correction</label>
+        <span className="text-xs text-slate-400">Prevent texture stretch</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-purple-500"
+      />
+      <div className="flex justify-between text-xs text-slate-500">
+        <span>Off</span>
+        <span className="font-medium text-purple-400">{(value * 100).toFixed(0)}%</span>
+        <span>Max</span>
+      </div>
+    </div>
+  )
+}
+
 interface ControlRendererProps {
   variant: ControlType
   showThresholds?: boolean
   showOffsets?: boolean
 }
 
-/**
- * Main Control Renderer - Renders controls based on variant
- */
 export const ControlRenderer: React.FC<ControlRendererProps> = ({ 
   variant, 
   showThresholds = true,
@@ -218,27 +227,25 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
   const { 
     xThreshold, yThreshold, zThreshold,
     xOffset, yOffset, zOffset,
+    uvCorrectionStrength,
     setThreshold, setOffset,
+    setUVCorrectionStrength,
   } = useStore()
 
-  // Generate control items
   const allItems = getControlItems().filter(item => {
     if (item.type === 'threshold' && !showThresholds) return false
     if (item.type === 'offset' && !showOffsets) return false
     return true
   })
 
-  // Generate mixed layout ONCE using useMemo with empty deps
   const mixedLayout = useMemo<ControlStyle[] | null>(() => {
     if (variant !== 'mixed') return null
     return getMixedLayout(allItems.length)
   }, [variant, allItems.length])
 
-  // Apply layout to items only once for mixed variant
   const items = useMemo<ControlItem[]>(() => {
     if (variant !== 'mixed' || !mixedLayout) return allItems
     
-    // Apply saved layout to items
     return allItems.map((item, index) => ({
       ...item,
       controlStyle: mixedLayout[index] as ControlStyle
@@ -270,11 +277,14 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
     analytics.trackControlChange(item.id, value)
   }, [setThreshold, setOffset])
 
+  const handleUVChange = useCallback((value: number) => {
+    setUVCorrectionStrength(value)
+  }, [setUVCorrectionStrength])
+
   const renderControl = (item: ControlItem) => {
     const value = getValue(item)
     const onChange = (v: number) => handleChange(item, v)
 
-    // For mixed variant, use item's controlStyle
     if (variant === 'mixed') {
       if (item.controlStyle === 'slider') {
         return <SliderControlComponent key={item.id} item={item} value={value} onChange={onChange} />
@@ -283,7 +293,6 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
       }
     }
 
-    // For other variants, use variant type
     switch (variant) {
       case 'inputs':
         return <InputControl key={item.id} item={item} value={value} onChange={onChange} />
@@ -306,6 +315,9 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
           )}
         </div>
       ))}
+      
+      {/* UV Correction Slider */}
+      <UVCorrectionSlider value={uvCorrectionStrength} onChange={handleUVChange} />
     </div>
   )
 }

@@ -7,6 +7,7 @@ import * as THREE from 'three'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter } from '../components/Sidebar'
 import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
+import { GizmoDragController } from '../components/GizmoSystem'
 import { ModalSystem } from '../components/ModalSystem'
 import { SelectionBox } from '../components/SelectionBox'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
@@ -14,6 +15,7 @@ import { useStore } from '../store/useStore'
 import { getVariantByPage, needsSidebar, getControlDescription, type VariantConfig } from '../utils/variantGenerator'
 import { getSidebarPosition } from '../utils/sidebarPosition'
 import { analytics } from '../utils/analytics'
+import { initializeSceneUVs, correctSceneUVs, resetSceneUVs } from '../utils/uvCorrector'
 
 // Zone config interface
 interface ZoneConfigUI {
@@ -39,6 +41,9 @@ function GLTFModel({ zones = [] }: SceneProps) {
   const { scene } = useGLTF('/test3.gltf')
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
+  const [initialized, setInitialized] = useState(false)
+  
+  const { uvCorrectionStrength } = useStore()
   
   useEffect(() => {
     scene.traverse((child) => {
@@ -88,6 +93,15 @@ function GLTFModel({ zones = [] }: SceneProps) {
     if (geometryRef) setModelGeometry(geometryRef)
     return positions
   }, [scene])
+
+  // Initialize UV corrector data once when scene loads
+  useEffect(() => {
+    if (!initialized && scene) {
+      initializeSceneUVs(scene)
+      setInitialized(true)
+      console.log('[UVCorrector] Initialized')
+    }
+  }, [scene, initialized])
 
   useEffect(() => {
     if (originalPositions.length === 0) return
@@ -149,10 +163,19 @@ function GLTFModel({ zones = [] }: SceneProps) {
             posAttr.setXYZ(idx, orig.x + offsetX, orig.y + offsetY, orig.z + offsetZ)
             selected.push(idx)
           }
+          
+          // Apply UV correction if enabled
+          if (uvCorrectionStrength > 0 && selected.length > 0) {
+            correctSceneUVs(scene, selected, uvCorrectionStrength)
+          }
         } else {
           for (let i = 0; i < posAttr.count; i++) {
             const orig = originalPositions[i]
             if (orig) posAttr.setXYZ(i, orig.x, orig.y, orig.z)
+          }
+          // Reset UVs when no offsets
+          if (initialized) {
+            resetSceneUVs(scene)
           }
         }
         
@@ -162,7 +185,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
     })
 
     setSelectedIndices(selected)
-  }, [scene, originalPositions, zones])
+  }, [scene, originalPositions, zones, uvCorrectionStrength, initialized])
 
   return (
     <group>
@@ -184,7 +207,6 @@ function Loader() {
   )
 }
 
-// SceneContent with OrbitControlsWrapper INSIDE Canvas
 function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
   return (
     <OrbitControlsWrapper>
@@ -194,6 +216,7 @@ function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean 
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
+        <GizmoDragController />
       </Suspense>
       <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
     </OrbitControlsWrapper>
