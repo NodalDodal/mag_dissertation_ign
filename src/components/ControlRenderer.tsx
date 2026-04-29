@@ -64,15 +64,24 @@ function getControlItems(): ControlItem[] {
     })
   })
   
-  ;(['x', 'y', 'z'] as const).forEach((axis) => {
-    items.push({
-      id: `offset-${axis}`,
-      label: `Offset ${axis.toUpperCase()}`,
-      sublabel: `Position adjustment (zone)`,
-      axis,
-      type: 'offset',
-      controlStyle: 'input',
-    })
+  // Offset Y -> Высота
+  items.push({
+    id: `offset-y`,
+    label: `Высота`,
+    sublabel: `Position adjustment (zone)`,
+    axis: 'y',
+    type: 'offset',
+    controlStyle: 'input',
+  })
+  
+  // Offset Z -> Ширина
+  items.push({
+    id: `offset-z`,
+    label: `Ширина`,
+    sublabel: `Position adjustment (zone)`,
+    axis: 'z',
+    type: 'offset',
+    controlStyle: 'input',
   })
   
   return items
@@ -353,9 +362,6 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
           )}
         </div>
       ))}
-      
-      {/* UV Correction Slider */}
-      <UVCorrectionSlider value={uvCorrectionStrength} onChange={handleUVChange} />
     </div>
   )
 }
