@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { analytics } from '../utils/analytics'
+import { MATERIALS, getMaterialKeys, getMaterialName } from '../utils/materialConfig'
 
 export type ControlType = 'inputs' | 'sliders' | 'mixed' | 'hybrid'
 
@@ -213,6 +214,32 @@ function UVCorrectionSlider({ value, onChange }: { value: number; onChange: (v: 
   )
 }
 
+/**
+ * Material Selector Dropdown
+ */
+function MaterialSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const materialKeys = getMaterialKeys()
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-slate-300 tracking-wide">Material</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-slate-900/70 rounded-xl px-4 py-3 text-slate-200 
+                   border border-transparent focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20
+                   transition-all duration-200 cursor-pointer"
+      >
+        {materialKeys.map((key) => (
+          <option key={key} value={key}>
+            {getMaterialName(key)}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 interface ControlRendererProps {
   variant: ControlType
   showThresholds?: boolean
@@ -228,8 +255,10 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
     xThreshold, yThreshold, zThreshold,
     xOffset, yOffset, zOffset,
     uvCorrectionStrength,
+    selectedMaterial,
     setThreshold, setOffset,
     setUVCorrectionStrength,
+    setSelectedMaterial,
   } = useStore()
 
   const allItems = getControlItems().filter(item => {
@@ -281,6 +310,11 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
     setUVCorrectionStrength(value)
   }, [setUVCorrectionStrength])
 
+  const handleMaterialChange = useCallback((value: string) => {
+    setSelectedMaterial(value)
+    analytics.trackControlChange('material', value)
+  }, [setSelectedMaterial])
+
   const renderControl = (item: ControlItem) => {
     const value = getValue(item)
     const onChange = (v: number) => handleChange(item, v)
@@ -307,6 +341,10 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Material Selector */}
+      <MaterialSelector value={selectedMaterial} onChange={handleMaterialChange} />
+      
+      {/* Controls */}
       {items.map((item) => (
         <div key={item.id}>
           {renderControl(item)}

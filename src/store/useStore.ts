@@ -18,6 +18,7 @@ interface ConfiguratorState {
   yThreshold: number
   zThreshold: number
   uvCorrectionStrength: number
+  selectedMaterial: string
   
   variant: VariantConfig | null
   sessionStartTime: number
@@ -30,6 +31,7 @@ interface ConfiguratorState {
   setYThreshold: (value: number) => void
   setZThreshold: (value: number) => void
   setUVCorrectionStrength: (value: number) => void
+  setSelectedMaterial: (material: string) => void
   setOffset: (axis: 'x' | 'y' | 'z', value: number) => void
   setThreshold: (axis: 'x' | 'y' | 'z', value: number) => void
   
@@ -48,7 +50,8 @@ const initialState = {
   xThreshold: 0,
   yThreshold: 0,
   zThreshold: 0,
-  uvCorrectionStrength: 1, // Default set to 1
+  uvCorrectionStrength: 1,
+  selectedMaterial: 'dark-wood-stain',
   variant: null,
   sessionStartTime: 0,
   interactionLogs: [],
@@ -64,6 +67,7 @@ export const useStore = create<ConfiguratorState>((set, get) => ({
   setYThreshold: (value) => set({ yThreshold: value }),
   setZThreshold: (value) => set({ zThreshold: value }),
   setUVCorrectionStrength: (value) => set({ uvCorrectionStrength: value }),
+  setSelectedMaterial: (material) => set({ selectedMaterial: material }),
   
   setOffset: (axis, value) => {
     switch (axis) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
-import { useGLTF, Environment } from '@react-three/drei'
+import { useGLTF, Environment, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 
 import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter } from '../components/Sidebar'
@@ -16,6 +16,7 @@ import { getVariantByPage, needsSidebar, getControlDescription, type VariantConf
 import { getSidebarPosition } from '../utils/sidebarPosition'
 import { analytics } from '../utils/analytics'
 import { initializeSceneUVs, correctSceneUVs, resetSceneUVs } from '../utils/uvCorrector'
+import { MATERIALS } from '../utils/materialConfig'
 
 // Zone config interface
 interface ZoneConfigUI {
@@ -43,7 +44,37 @@ function GLTFModel({ zones = [] }: SceneProps) {
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   const [initialized, setInitialized] = useState(false)
   
-  const { uvCorrectionStrength } = useStore()
+  const { uvCorrectionStrength, selectedMaterial } = useStore()
+  
+  // Load textures for selected material
+  const materialConfig = MATERIALS[selectedMaterial] || MATERIALS['dark-wood-stain']
+  const textures = useTexture({
+    map: materialConfig.map,
+    ...(materialConfig.normalMap && { normalMap: materialConfig.normalMap }),
+    ...(materialConfig.roughnessMap && { roughnessMap: materialConfig.roughnessMap }),
+  })
+  
+  // Apply textures to meshes
+  useEffect(() => {
+    if (!scene || !textures) return
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        const mat = child.material as THREE.MeshStandardMaterial
+        if (textures.map) {
+          mat.map = textures.map
+          mat.map.colorSpace = THREE.SRGBColorSpace
+        }
+        if (textures.normalMap) {
+          mat.normalMap = textures.normalMap
+        }
+        if (textures.roughnessMap) {
+          mat.roughnessMap = textures.roughnessMap
+        }
+        mat.needsUpdate = true
+      }
+    })
+    console.log('[Material] Applied:', selectedMaterial)
+  }, [scene, textures, selectedMaterial])
   
   useEffect(() => {
     scene.traverse((child) => {
