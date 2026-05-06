@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, Suspense } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import { useGLTF, Environment, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
@@ -11,8 +11,7 @@ import { GizmoDragController } from '../components/GizmoSystem'
 import { ModalSystem } from '../components/ModalSystem'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
-import { getVariantByPage, needsSidebar, getControlDescription, type VariantConfig } from '../utils/variantGenerator'
-import { getSidebarPosition } from '../utils/sidebarPosition'
+import { VARIANTS, needsSidebar, getControlDescription, type VariantConfig } from '../utils/variantGenerator'
 import { analytics } from '../utils/analytics'
 import { initializeSceneUVs, correctSceneUVs, resetSceneUVs } from '../utils/uvCorrector'
 import { MATERIALS } from '../utils/materialConfig'
@@ -103,6 +102,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
     })
   }, [scene])
 
+
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
     let geometryRef: THREE.BufferGeometry | null = null
@@ -128,7 +128,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
   useEffect(() => {
     if (!initialized && scene) {
       initializeSceneUVs(scene)
-      setInitialized(true)
       console.log('[UVCorrector] Initialized')
     }
   }, [scene, initialized])
@@ -214,6 +213,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
       }
     })
 
+
     setSelectedIndices(selected)
   }, [scene, originalPositions, zones, uvCorrectionStrength, initialized])
 
@@ -268,25 +268,45 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
 }
 
 export const ExperimentPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { id: routeId } = useParams()
   const [showModals] = useState(true)
   const [variant, setVariant] = useState<VariantConfig | null>(null)
+  
+  // Force new variant on every mount, ignoring any stored state
   
   const { xOffset, yOffset, zOffset, logFinish } = useStore()
 
   useEffect(() => {
-    if (id) {
-      const pageNum = parseInt(id, 10)
-      const v = getVariantByPage(pageNum)
-      if (v) {
-        setVariant(v)
-        analytics.trackSessionStart(v.id)
-      } else {
-        navigate('/')
-      }
+    // On a full page refresh, rotate the route `id` between the 5 allowed ids (pages 1..5).
+    // Use replace to avoid polluting history.
+    const currentPage = Number(routeId)
+    const allowedPages = [1, 2, 3, 4, 5]
+
+    if (!Number.isFinite(currentPage) || !allowedPages.includes(currentPage)) {
+      navigate('/', { replace: true })
+      return
     }
-  }, [id, navigate])
+
+    const otherPages = allowedPages.filter((p) => p !== currentPage)
+    const nextPage = otherPages[Math.floor(Math.random() * otherPages.length)]
+    navigate(`/variant/${nextPage}`, { replace: true })
+  }, [])
+
+  useEffect(() => {
+    const page = Number(routeId)
+    if (!Number.isFinite(page)) return
+
+    const pageVariants = VARIANTS.filter((v) => v.page === page)
+    const randomVariant = pageVariants[Math.floor(Math.random() * pageVariants.length)]
+
+    if (randomVariant) {
+      setVariant(randomVariant)
+      analytics.trackSessionStart(randomVariant.id)
+    } else {
+      navigate('/', { replace: true })
+    }
+  }, [routeId, navigate])
 
   const handleFinish = () => {
     logFinish()
@@ -313,6 +333,7 @@ export const ExperimentPage: React.FC = () => {
 
   const hasSidebar = needsSidebar(variant)
   const showGizmos = variant.controlType === 'gizmo' || variant.controlType === 'hybrid'
+
 
   return (
     <div className="w-full h-screen bg-slate-900 relative overflow-hidden">
