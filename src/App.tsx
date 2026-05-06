@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { ExperimentPage } from './pages/ExperimentPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { getAssignedVariant } from './utils/variantGenerator'
@@ -9,17 +9,17 @@ import { useStore } from './store/useStore'
  * Root redirect component - assigns user to variant and redirects
  */
 function Root() {
+  const location = useLocation()
   const navigate = useNavigate()
   const setVariant = useStore((s) => s.setVariant)
 
   useEffect(() => {
-    // Get or assign variant
-    const variant = getAssignedVariant()
-    setVariant(variant)
-    
-    // Redirect to variant page
-    navigate(`/variant/${variant.page}`, { replace: true })
-  }, [])
+    if (location.pathname === '/') {
+      const variant = getAssignedVariant()
+      setVariant(variant)
+      navigate(`/variant/${variant.page}`, { replace: true })
+    }
+  }, [location.pathname, navigate, setVariant])
 
   return (
     <div className="w-full h-screen bg-slate-900 flex items-center justify-center">
@@ -44,8 +44,8 @@ function App() {
         {/* Placeholder page */}
         <Route path="/placeholder" element={<PlaceholderPage />} />
         
-        {/* Fallback redirect */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 404 fallback */}
+        <Route path="*" element={<div>404</div>} />
       </Routes>
     </BrowserRouter>
   )
