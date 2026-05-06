@@ -1,13 +1,10 @@
 /**
  * Analytics Utility
  * Tracks user interactions for UX research
- * Integrates with PostHog for analytics
  */
 
-import posthog from 'posthog-js'
-
 export interface AnalyticsEvent {
-  type: 'click' | 'control_change' | 'finish' | 'modal_open' | 'modal_close' | 'session_start' | 'sidebar_toggle'
+  type: 'click' | 'control_change' | 'finish' | 'modal_open' | 'modal_close' | 'session_start'
   x?: number
   y?: number
   controlName?: string
@@ -51,28 +48,6 @@ class Analytics {
     return this.events.filter(e => e.type === 'control_change').length
   }
 
-  private captureToPostHog(event: AnalyticsEvent): void {
-    // Map analytics event types to PostHog event names
-    const eventNameMap: Record<string, string> = {
-      click: 'click',
-      control_change: 'control_change',
-      finish: 'experiment_finish',
-      modal_open: 'modal_open',
-      modal_close: 'modal_close',
-      session_start: 'session_start',
-      sidebar_toggle: 'sidebar_toggle',
-    }
-
-    const postHogEventName = eventNameMap[event.type] || event.type
-
-    // Send to PostHog
-    posthog.capture(postHogEventName, {
-      ...event,
-      sessionId: this.sessionId,
-      sessionDuration: this.getSessionDuration(),
-    })
-  }
-
   track(event: Omit<AnalyticsEvent, 'timestamp' | 'sessionId'>): void {
     const fullEvent: AnalyticsEvent = {
       ...event,
@@ -87,9 +62,6 @@ class Analytics {
       ...event,
       time: this.getSessionDuration(),
     })
-
-    // Send to PostHog
-    this.captureToPostHog(fullEvent)
   }
 
   trackClick(x: number, y: number): void {

@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import type { SidebarPosition } from '../utils/variantGenerator'
-import { analytics } from '../utils/analytics'
 
 interface SidebarProps {
   position: SidebarPosition
@@ -30,24 +29,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ position, children, defaultOpe
   // Arrow icon rotation - chevron points toward sidebar when open
   const arrowRotation = isSidebarOpen ? (isLeft ? 'rotate-0' : 'rotate-180') : (isLeft ? 'rotate-180' : 'rotate-0')
 
-  // Handle sidebar toggle with analytics
-  const handleToggle = () => {
-    const newState = !isSidebarOpen
-    setIsSidebarOpen(newState)
-    analytics.track({
-      type: 'sidebar_toggle',
-      controlName: position,
-      value: newState ? 'open' : 'closed',
-    })
-  }
-
   return (
     <div 
       className={`fixed top-4 ${containerPositionClass} z-20 w-[340px] transition-transform duration-300 ease-in-out ${transformClass}`}
     >
       {/* Toggle Button - Always visible, attached to sidebar edge */}
       <button
-        onClick={handleToggle}
+        onClick={() => setIsSidebarOpen(prev => !prev)}
         className={`absolute top-1/2 -translate-y-1/2 ${buttonPositionClass} w-10 h-10 rounded-full bg-slate-700/70 backdrop-blur-md border border-white/10 shadow-lg flex items-center justify-center transition-all duration-200 hover:bg-slate-600/80 hover:scale-105 active:scale-95 text-white`}
         aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
       >
