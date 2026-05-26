@@ -3,19 +3,30 @@
 		"generator":"Khronos glTF Blender I/O v5.1.19",
 		"version":"2.0"
 	},
+	"extensionsUsed":[
+		"KHR_draco_mesh_compression"
+	],
+	"extensionsRequired":[
+		"KHR_draco_mesh_compression"
+	],
 	"scene":0,
 	"scenes":[
 		{
 			"name":"Scene",
 			"nodes":[
-				0
+				0,
+				1
 			]
 		}
 	],
 	"nodes":[
 		{
 			"mesh":0,
-			"name":"Cube"
+			"name":"Vert.001"
+		},
+		{
+			"mesh":1,
+			"name":"Vert.002"
 		}
 	],
 	"materials":[
@@ -33,11 +44,15 @@
 					"index":2
 				}
 			}
+		},
+		{
+			"doubleSided":true,
+			"name":"Material"
 		}
 	],
 	"meshes":[
 		{
-			"name":"Cube.001",
+			"name":"Vert.001",
 			"primitives":[
 				{
 					"attributes":{
@@ -45,8 +60,44 @@
 						"NORMAL":1,
 						"TEXCOORD_0":2
 					},
+					"extensions":{
+						"KHR_draco_mesh_compression":{
+							"bufferView":0,
+							"attributes":{
+								"POSITION":0,
+								"NORMAL":1,
+								"TEXCOORD_0":2
+							}
+						}
+					},
 					"indices":3,
-					"material":0
+					"material":0,
+					"mode":4
+				}
+			]
+		},
+		{
+			"name":"Vert.003",
+			"primitives":[
+				{
+					"attributes":{
+						"POSITION":4,
+						"NORMAL":5,
+						"TEXCOORD_0":6
+					},
+					"extensions":{
+						"KHR_draco_mesh_compression":{
+							"bufferView":1,
+							"attributes":{
+								"POSITION":0,
+								"NORMAL":1,
+								"TEXCOORD_0":2
+							}
+						}
+					},
+					"indices":7,
+					"material":1,
+					"mode":4
 				}
 			]
 		}
@@ -69,79 +120,91 @@
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_normal-ogl",
-			"uri":"test3/dark-wood-stain_normal-ogl.png"
+			"uri":"dark-wood-stain_normal-ogl.png"
 		},
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_albedo",
-			"uri":"test3/dark-wood-stain_albedo.png"
+			"uri":"dark-wood-stain_albedo.png"
 		},
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_metallic-dark-wood-stain_roughness",
-			"uri":"test3/dark-wood-stain_metallic-dark-wood-stain_roughness.png"
+			"uri":"dark-wood-stain_metallic-dark-wood-stain_roughness.png"
 		}
 	],
 	"accessors":[
 		{
-			"bufferView":0,
 			"componentType":5126,
-			"count":1008,
+			"count":5766,
 			"max":[
-				0.21353107690811157,
-				0.43247461318969727,
-				0.4382118582725525
+				0.03837636485695839,
+				0.7449285984039307,
+				0.7521935701370239
 			],
 			"min":[
-				-0.21353107690811157,
-				-0.4380130171775818,
-				-0.43924587965011597
+				-0.28920549154281616,
+				-0.7552574276924133,
+				-0.7521935701370239
 			],
 			"type":"VEC3"
 		},
 		{
-			"bufferView":1,
 			"componentType":5126,
-			"count":1008,
+			"count":5766,
 			"type":"VEC3"
 		},
 		{
-			"bufferView":2,
 			"componentType":5126,
-			"count":1008,
+			"count":5766,
 			"type":"VEC2"
 		},
 		{
-			"bufferView":3,
 			"componentType":5123,
-			"count":2880,
+			"count":11868,
+			"type":"SCALAR"
+		},
+		{
+			"componentType":5126,
+			"count":72,
+			"max":[
+				1.5292092925278666e-08,
+				0.3361860513687134,
+				0.349842369556427
+			],
+			"min":[
+				-0.1467028558254242,
+				-0.3361859917640686,
+				-0.349842369556427
+			],
+			"type":"VEC3"
+		},
+		{
+			"componentType":5126,
+			"count":72,
+			"type":"VEC3"
+		},
+		{
+			"componentType":5126,
+			"count":72,
+			"type":"VEC2"
+		},
+		{
+			"componentType":5123,
+			"count":108,
 			"type":"SCALAR"
 		}
 	],
 	"bufferViews":[
 		{
 			"buffer":0,
-			"byteLength":12096,
-			"byteOffset":0,
-			"target":34962
+			"byteLength":34127,
+			"byteOffset":0
 		},
 		{
 			"buffer":0,
-			"byteLength":12096,
-			"byteOffset":12096,
-			"target":34962
-		},
-		{
-			"buffer":0,
-			"byteLength":8064,
-			"byteOffset":24192,
-			"target":34962
-		},
-		{
-			"buffer":0,
-			"byteLength":5760,
-			"byteOffset":32256,
-			"target":34963
+			"byteLength":573,
+			"byteOffset":34128
 		}
 	],
 	"samplers":[
@@ -152,7 +215,7 @@
 	],
 	"buffers":[
 		{
-			"byteLength":38016,
+			"byteLength":34704,
 			"uri":"test3.bin"
 		}
 	]
