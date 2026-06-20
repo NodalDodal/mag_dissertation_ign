@@ -104,7 +104,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
     })
   }, [scene])
 
-
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
     let geometryRef: THREE.BufferGeometry | null = null
@@ -215,7 +214,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
       }
     })
 
-
     setSelectedIndices(selected)
   }, [scene, originalPositions, zones, uvCorrectionStrength, initialized])
 
@@ -280,8 +278,8 @@ export const ExperimentPage: React.FC = () => {
   const { xOffset, yOffset, zOffset, logFinish } = useStore()
 
   useEffect(() => {
-    // On a full page refresh, rotate the route `id` between the 5 allowed ids (pages 1..5).
-    // Use replace to avoid polluting history.
+    // Rotate the route `id` only on a real browser refresh (reload).
+    // If the user manually types /variant/:id (navigation), we keep their id.
     const currentPage = Number(routeId)
     const allowedPages = [1, 2, 3, 4, 5]
 
@@ -289,6 +287,21 @@ export const ExperimentPage: React.FC = () => {
       navigate('/', { replace: true })
       return
     }
+
+    const navEntry = performance.getEntriesByType?.('navigation')?.[0] as
+      | PerformanceNavigationTiming
+      | undefined
+    const isReload =
+      (navEntry?.type === 'reload') ||
+      // Legacy fallback
+      // eslint-disable-next-line deprecation/deprecation
+      (typeof performance !== 'undefined' &&
+        // eslint-disable-next-line deprecation/deprecation
+        typeof performance.navigation !== 'undefined' &&
+        // eslint-disable-next-line deprecation/deprecation
+        performance.navigation.type === 1)
+
+    if (!isReload) return
 
     const otherPages = allowedPages.filter((p) => p !== currentPage)
     const nextPage = otherPages[Math.floor(Math.random() * otherPages.length)]
@@ -342,7 +355,6 @@ export const ExperimentPage: React.FC = () => {
 
   const hasSidebar = needsSidebar(variant)
   const showGizmos = variant.controlType === 'gizmo' || variant.controlType === 'hybrid'
-
 
   return (
     <div className="w-full h-screen bg-slate-900 relative overflow-hidden">

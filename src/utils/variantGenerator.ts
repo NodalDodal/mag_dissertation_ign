@@ -45,29 +45,12 @@ export const VARIANTS: VariantConfig[] = [
 const STORAGE_KEY = '3d_configurator_variant'
 
 /**
- * Get or assign variant for user
+ * Get random variant for current session (no persistence)
  */
 export function getAssignedVariant(): VariantConfig {
-  // Check localStorage first
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch {
-        // Invalid stored data, continue to generate new
-      }
-    }
-  }
-  
   // Randomly assign (exclude page 6)
   const availableVariants = VARIANTS.filter(v => v.page !== EXCLUDED_PAGE)
   const randomVariant = availableVariants[Math.floor(Math.random() * availableVariants.length)]
-  
-  // Store assignment
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(randomVariant))
-  }
   
   return randomVariant
 }
