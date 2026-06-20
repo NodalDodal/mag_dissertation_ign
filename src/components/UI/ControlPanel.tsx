@@ -2,6 +2,7 @@ import React from 'react'
 import { InputField } from './InputField'
 import { SliderControl } from './SliderControl'
 import { ToggleSwitch } from './ToggleSwitch'
+import { scaleToMm, mmToScale, clampScale } from '../../utils/unitConversion'
 
 interface ControlPanelProps {
   scaleX: string
@@ -35,6 +36,7 @@ interface ControlPanelProps {
 /**
  * Modern glassmorphism control panel for 3D configurator
  * Multi-axis vertex manipulation
+ * Uses mm-based display for offset/position controls
  */
 export const ControlPanel: React.FC<ControlPanelProps> = ({
   scaleX,
@@ -64,6 +66,36 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onOpenInfo,
   onReset
 }) => {
+  // Convert offset values from mm to scale for internal use
+  const handleOffsetXChange = (value: string) => {
+    const mm = parseFloat(value) || 0
+    const scale = clampScale(mmToScale(mm))
+    onOffsetXChange(String(scale))
+  }
+
+  const handleOffsetYChange = (value: string) => {
+    const mm = parseFloat(value) || 0
+    const scale = clampScale(mmToScale(mm))
+    onOffsetYChange(String(scale))
+  }
+
+  // Convert offset position values from mm to scale
+  const handleOffsetPosXChange = (value: number) => {
+    const scale = clampScale(mmToScale(value))
+    onOffsetPosXChange(scale)
+  }
+
+  const handleOffsetPosYChange = (value: number) => {
+    const scale = clampScale(mmToScale(value))
+    onOffsetPosYChange(scale)
+  }
+
+  // Display values in mm
+  const displayOffsetX = scaleToMm(parseFloat(offsetX) || 0.3)
+  const displayOffsetY = scaleToMm(parseFloat(offsetY) || 1)
+  const displayOffsetPosX = scaleToMm(offsetPosX)
+  const displayOffsetPosY = scaleToMm(offsetPosY)
+
   return (
     <div className="fixed top-4 right-4 z-20 w-[340px]">
       <div className="bg-slate-800/60 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden transition-all duration-300">
@@ -101,14 +133,24 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
           <div className="border-t border-white/5" />
 
-          {/* Offset Section */}
+          {/* Offset Section - NOW IN MM */}
           <div className="space-y-5">
             <h3 className="text-xs font-semibold text-blue-500 uppercase tracking-wider">
               Offset
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <InputField label="Offset X" value={offsetX}  onChange={onOffsetXChange} />
-              <InputField label="Offset Y" value={offsetY} onChange={onOffsetYChange} />
+              <InputField 
+                label="Offset X" 
+                value={String(displayOffsetX)} 
+                onChange={handleOffsetXChange}
+                unit="(мм)"
+              />
+              <InputField 
+                label="Offset Y" 
+                value={String(displayOffsetY)} 
+                onChange={handleOffsetYChange}
+                unit="(мм)"
+              />
             </div>
           </div>
 
@@ -150,7 +192,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
           <div className="border-t border-white/5" />
 
-          {/* Position Adjustment - Offsets */}
+          {/* Position Adjustment - Offsets - NOW IN MM */}
           <div className="space-y-5">
             <h3 className="text-xs font-semibold text-blue-500 uppercase tracking-wider">
               Position Adjustment
@@ -159,19 +201,23 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               label="Offset Z"
               sublabel="Position adjustment along X"
               value={offsetPosX}
-              min={-2}
+              min={0.3}
               max={2}
-              step={0.5}
-              onChange={onOffsetPosXChange}
+              step={0.01}
+              onChange={handleOffsetPosXChange}
+              unit="(мм)"
+              displayMultiplier={1000}
             />
             <SliderControl
               label="Offset Y"
               sublabel="Position adjustment along Y"
               value={offsetPosY}
-              min={-2}
+              min={0.3}
               max={2}
-              step={0.5}
-              onChange={onOffsetPosYChange}
+              step={0.01}
+              onChange={handleOffsetPosYChange}
+              unit="(мм)"
+              displayMultiplier={1000}
             />
             <SliderControl
               label="Offset X"

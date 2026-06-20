@@ -2,6 +2,15 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { analytics } from '../utils/analytics'
 import { getMaterialKeys, getMaterialName } from '../utils/materialConfig'
+import {
+  scaleToMm,
+  mmToScale,
+  clampScale,
+  MIN_DISPLAY_MM,
+  MAX_DISPLAY_MM,
+  parseMmInput,
+  formatMmDisplay,
+} from '../utils/unitConversion'
 
 export type ControlType = 'inputs' | 'sliders' | 'mixed' | 'hybrid'
 
@@ -88,23 +97,32 @@ function getControlItems(): ControlItem[] {
 }
 
 function InputControl({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
-  const min = item.type === 'offset' ? 0.3 : undefined
-  const max = 2
+  const isOffset = item.type === 'offset'
   
+  // For offset controls, use mm values
+  const displayValue = isOffset ? scaleToMm(value) : value
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value) || 0
-    onChange(val)
+    if (isOffset) {
+      // User enters mm, convert to scale
+      const val = parseMmInput(e.target.value)
+      onChange(val)
+    } else {
+      const val = parseFloat(e.target.value) || 0
+      onChange(val)
+    }
   }
+
+  const inputLabel = isOffset ? `${item.label} (мм)` : item.label
 
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
+      <label className="text-sm font-medium text-slate-300 tracking-wide">{inputLabel}</label>
       <input
         type="number"
-        min={min}
-        max={max}
-        step={0.1}
-        value={value}
+        min={isOffset ? MIN_DISPLAY_MM : undefined}
+        max={isOffset ? MAX_DISPLAY_MM : 2}
+        step={isOffset ? 10 : 0.1}
+        value={displayValue}
         onChange={handleChange}
         className="w-full bg-slate-900/70 rounded-xl px-4 py-3 text-slate-200 
                    border border-transparent focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20
@@ -115,70 +133,106 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
 }
 
 function SliderControlComponent({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
-  const min = item.type === 'offset' ? 0.3 : -2
-  const max = 2
-  const step = 0.01
+  const isOffset = item.type === 'offset'
+  
+  // For offset controls, use mm values for display and slider
+  const sliderMin = isOffset ? MIN_DISPLAY_MM : -2
+  const sliderMax = isOffset ? MAX_DISPLAY_MM : 2
+  const sliderStep = isOffset ? 10 : 0.01
+  const displayValue = isOffset ? scaleToMm(value) : value
 
   const accentColor = item.axis === 'x' ? 'accent-blue-500' : item.axis === 'y' ? 'accent-green-500' : 'accent-purple-500'
   const valueColor = item.axis === 'x' ? 'text-blue-400' : item.axis === 'y' ? 'text-green-400' : 'text-purple-400'
 
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isOffset) {
+      // Convert mm to scale
+      const mmValue = parseFloat(e.target.value)
+      const scaleValue = mmToScale(mmValue)
+      onChange(clampScale(scaleValue))
+    } else {
+      onChange(parseFloat(e.target.value))
+    }
+  }
+
+  const displayLabel = isOffset ? `${item.label} (мм)` : item.label
+
   return (
     <div className="space-y-3 p-3 bg-slate-700/30 rounded-lg border border-white/10">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
+        <label className="text-sm font-medium text-slate-300 tracking-wide">{displayLabel}</label>
         <span className="text-xs text-slate-400">{item.axis.toUpperCase()}{GT_SYMBOL}0</span>
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        min={sliderMin}
+        max={sliderMax}
+        step={sliderStep}
+        value={displayValue}
+        onChange={handleSliderChange}
         className={`w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer ${accentColor}`}
       />
       <div className="flex justify-between text-xs text-slate-500">
-        <span>{min}</span>
-        <span className={`font-medium ${valueColor}`}>{value.toFixed(2)}</span>
-        <span>{max}</span>
+        <span>{sliderMin}</span>
+        <span className={`font-medium ${valueColor}`}>{displayValue}</span>
+        <span>{sliderMax}</span>
       </div>
     </div>
   )
 }
 
 function HybridControl({ item, value, onChange }: { item: ControlItem; value: number; onChange: (v: number) => void }) {
-  const [localValue, setLocalValue] = useState(String(value))
+  const isOffset = item.type === 'offset'
+  
+  // For offset controls, use mm values
+  const displayValue = isOffset ? scaleToMm(value) : value
+  const [localValue, setLocalValue] = useState(String(displayValue))
 
-  const handleSliderChange = (v: number) => {
-    setLocalValue(String(v))
-    onChange(v)
+  const handleSliderChange = (mmValue: number) => {
+    setLocalValue(String(mmValue))
+    if (isOffset) {
+      // Convert mm to scale
+      const scaleValue = mmToScale(mmValue)
+      onChange(clampScale(scaleValue))
+    } else {
+      onChange(mmValue)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setLocalValue(val)
-    const num = parseFloat(val)
-    if (!isNaN(num)) {
-      onChange(num)
+    if (isOffset) {
+      // User enters mm, convert to scale
+      const scaleValue = parseMmInput(val)
+      onChange(scaleValue)
+    } else {
+      const num = parseFloat(val)
+      if (!isNaN(num)) {
+        onChange(num)
+      }
     }
   }
 
   useEffect(() => {
-    setLocalValue(String(value))
-  }, [value])
+    setLocalValue(String(displayValue))
+  }, [displayValue])
 
-  const min = item.type === 'offset' ? 0.3 : -2
-  const max = 2
+  const sliderMin = isOffset ? MIN_DISPLAY_MM : -2
+  const sliderMax = isOffset ? MAX_DISPLAY_MM : 2
+  const sliderStep = isOffset ? 10 : 0.01
+
+  const displayLabel = isOffset ? `${item.label} (мм)` : item.label
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-300 tracking-wide">{item.label}</label>
+        <label className="text-sm font-medium text-slate-300 tracking-wide">{displayLabel}</label>
         <input
           type="number"
-          min={min}
-          max={max}
-          step={0.1}
+          min={sliderMin}
+          max={sliderMax}
+          step={isOffset ? 10 : 0.1}
           value={localValue}
           onChange={handleInputChange}
           className="w-20 bg-slate-900/70 rounded-lg px-2 py-1 text-sm text-slate-200 text-right
@@ -187,10 +241,10 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={0.01}
-        value={value}
+        min={sliderMin}
+        max={sliderMax}
+        step={sliderStep}
+        value={displayValue}
         onChange={(e) => handleSliderChange(parseFloat(e.target.value))}
         className="w-full h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer accent-blue-500"
       />

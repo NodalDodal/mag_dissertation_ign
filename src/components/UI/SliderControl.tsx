@@ -8,10 +8,12 @@ interface SliderControlProps {
   max: number
   step: number
   onChange: (value: number) => void
+  unit?: string // Optional unit suffix, e.g., "(мм)"
+  displayMultiplier?: number // Optional multiplier for display (e.g., 1000 for mm)
 }
 
 /**
- * Modern glass-styled slider component
+ * Modern glass-styled slider component with optional mm conversion
  */
 export const SliderControl: React.FC<SliderControlProps> = ({
   label,
@@ -20,30 +22,46 @@ export const SliderControl: React.FC<SliderControlProps> = ({
   min,
   max,
   step,
-  onChange
+  onChange,
+  unit,
+  displayMultiplier
 }) => {
+  // Convert internal value to display value if multiplier is provided
+  const displayValue = displayMultiplier ? Math.round(value * displayMultiplier) : value
+  
+  // Convert display value back to internal value on change
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const displayVal = parseFloat(e.target.value)
+    const internalValue = displayMultiplier ? displayVal / displayMultiplier : displayVal
+    onChange(internalValue)
+  }
+
+  // Convert min/max for display
+  const displayMin = displayMultiplier ? Math.round(min * displayMultiplier) : min
+  const displayMax = displayMultiplier ? Math.round(max * displayMultiplier) : max
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <label className="text-sm font-medium text-slate-300 tracking-wide">
-            {label}
+            {label}{unit && <span className="text-slate-400 ml-1">{unit}</span>}
           </label>
           {sublabel && (
             <p className="text-xs text-slate-500 mt-0.5">{sublabel}</p>
           )}
         </div>
         <span className="text-xs font-mono text-blue-400 bg-slate-700/50 px-2.5 py-1 rounded-lg border border-slate-600/30">
-          {value.toFixed(2)}
+          {displayValue}
         </span>
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        min={displayMin}
+        max={displayMax}
+        step={displayMultiplier ? step * displayMultiplier : step}
+        value={displayValue}
+        onChange={handleChange}
         className="w-full h-1.5 bg-slate-700 rounded-full appearance-none cursor-pointer
                    accent-blue-500 hover:accent-blue-400 
                    transition-all duration-200
@@ -61,9 +79,9 @@ export const SliderControl: React.FC<SliderControlProps> = ({
                    [&::-webkit-slider-thumb]:hover:bg-blue-400"
       />
       <div className="flex justify-between text-xs text-slate-500 font-mono">
-        <span>{min.toFixed(1)}</span>
-        <span>{(min + max) / 2}</span>
-        <span>{max.toFixed(1)}</span>
+        <span>{displayMin}</span>
+        <span>{displayMin + (displayMax - displayMin) / 2}</span>
+        <span>{displayMax}</span>
       </div>
     </div>
   )

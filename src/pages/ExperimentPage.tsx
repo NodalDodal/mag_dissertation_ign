@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState, useMemo, Suspense } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
@@ -309,8 +311,15 @@ export const ExperimentPage: React.FC = () => {
   }, [routeId, navigate])
 
   const handleFinish = () => {
+    // Логирование значений yOffset и zOffset при нажатии кнопки "Закончить"
+    console.log('[Finish] yOffset:', yOffset, 'zOffset:', zOffset)
     logFinish()
     analytics.trackFinish()
+    
+    // Yandex Metrika reachGoal - вызов через window
+    if (typeof window !== 'undefined' && (window as any).ym) {
+      (window as any).ym(109414926, 'reachGoal', '840')
+    }
   }
 
   const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {
