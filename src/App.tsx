@@ -4,6 +4,7 @@ import { ExperimentPage } from './pages/ExperimentPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { getAssignedVariant } from './utils/variantGenerator'
 import { useStore } from './store/useStore'
+import { useMetrikaHit } from './hooks/useMetrika'
 
 /**
  * Root redirect component - assigns user to variant and redirects
@@ -31,22 +32,34 @@ function Root() {
 /**
  * Main App with routing
  */
+function AppContent() {
+  // Track page views with Yandex Metrika
+  useMetrikaHit()
+  
+  return (
+    <Routes>
+      {/* Root - redirect to variant */}
+      <Route path="/" element={<Root />} />
+      
+      {/* Experiment pages */}
+      <Route path="/variant/:id" element={<ExperimentPage />} />
+      
+      {/* Placeholder page */}
+      <Route path="/placeholder" element={<PlaceholderPage />} />
+      
+      {/* 404 fallback */}
+      <Route path="*" element={<div>404</div>} />
+    </Routes>
+  )
+}
+
+/**
+ * Main App with routing
+ */
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Root - redirect to variant */}
-        <Route path="/" element={<Root />} />
-        
-        {/* Experiment pages */}
-        <Route path="/variant/:id" element={<ExperimentPage />} />
-        
-        {/* Placeholder page */}
-        <Route path="/placeholder" element={<PlaceholderPage />} />
-        
-        {/* 404 fallback */}
-        <Route path="*" element={<div>404</div>} />
-      </Routes>
+      <AppContent />
     </BrowserRouter>
   )
 }

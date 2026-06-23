@@ -271,6 +271,9 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
   )
 }
 
+// Yandex Metrika ID
+const METRIKA_ID = 109078887
+
 // Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {
   const isCorrect = currentZOffset === TARGET_Z_OFFSET
@@ -284,7 +287,7 @@ function trackTaskSuccess(currentZOffset: number) {
   
   // Send to Yandex Metrika
   if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-    window.ym(109078887, 'params', {
+    window.ym(METRIKA_ID, 'params', {
       zOffset: currentZOffset,
       targetValue: TARGET_Z_OFFSET,
       isCorrect: isCorrect
@@ -343,6 +346,13 @@ export const ExperimentPage: React.FC = () => {
     if (randomVariant) {
       setVariant(randomVariant)
       analytics.trackSessionStart(randomVariant.id)
+      
+      // Send variant info to Yandex Metrika
+      if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+        window.ym(METRIKA_ID, 'params', {
+          variant: randomVariant.id
+        })
+      }
     } else {
       navigate('/', { replace: true })
     }
