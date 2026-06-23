@@ -284,7 +284,7 @@ function trackTaskSuccess(currentZOffset: number) {
   
   // Send to Yandex Metrika
   if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-    window.ym(109414926, 'params', {
+    window.ym(109078887, 'params', {
       zOffset: currentZOffset,
       targetValue: TARGET_Z_OFFSET,
       isCorrect: isCorrect
