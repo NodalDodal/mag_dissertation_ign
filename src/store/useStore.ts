@@ -114,7 +114,7 @@ export const useStore = create<ConfiguratorState>((set, get) => ({
   logFinish: () => {
     const log: InteractionLog = { type: 'finish', timestamp: Date.now() }
     set((state) => ({ interactionLogs: [...state.interactionLogs, log] }))
-    console.log('[Analytics] Finish clicked!', { totalTime: Date.now() - get().sessionStartTime, interactions: get().interactionLogs.length })
+    console.log('[Analytics] Finish clicked!', { totalTime: (Date.now() - get().sessionStartTime) / 1000, interactions: get().interactionLogs.length })
   },
 
   reset: () => set(initialState),

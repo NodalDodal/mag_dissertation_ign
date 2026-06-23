@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useMemo, Suspense } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
@@ -33,6 +32,9 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
   { id: 'z_y', axis: 'y', direction: 'positive', threshold: 0, offset: 0, enabled: true },
   { id: 'z_z', axis: 'z', direction: 'positive', threshold: 0, offset: 0, enabled: true },
 ]
+
+// Target zOffset value for task success (in mm)
+const TARGET_Z_OFFSET = 0.84
 
 interface SceneProps {
   zones?: ZoneConfigUI[]
@@ -103,6 +105,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
       }
     })
   }, [scene])
+
 
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
@@ -214,6 +217,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
       }
     })
 
+
     setSelectedIndices(selected)
   }, [scene, originalPositions, zones, uvCorrectionStrength, initialized])
 
@@ -265,6 +269,27 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
       </Canvas>
     </div>
   )
+}
+
+// Track task success and send to Yandex Metrika
+function trackTaskSuccess(currentZOffset: number) {
+  const isCorrect = currentZOffset === TARGET_Z_OFFSET
+  
+  // Debug logging
+  console.log('Task Success:', {
+    zOffset: currentZOffset,
+    targetValue: TARGET_Z_OFFSET,
+    isCorrect: isCorrect
+  })
+  
+  // Send to Yandex Metrika
+  if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    window.ym(109414926, 'params', {
+      zOffset: currentZOffset,
+      targetValue: TARGET_Z_OFFSET,
+      isCorrect: isCorrect
+    })
+  }
 }
 
 export const ExperimentPage: React.FC = () => {
@@ -324,15 +349,13 @@ export const ExperimentPage: React.FC = () => {
   }, [routeId, navigate])
 
   const handleFinish = () => {
+    // Track task success
+    trackTaskSuccess(zOffset)
+    
     // Логирование значений yOffset и zOffset при нажатии кнопки "Закончить"
     console.log('[Finish] yOffset:', yOffset, 'zOffset:', zOffset)
     logFinish()
     analytics.trackFinish()
-    
-    // Yandex Metrika reachGoal - вызов через window
-    if (typeof window !== 'undefined' && (window as any).ym) {
-      (window as any).ym(109414926, 'reachGoal', '840')
-    }
   }
 
   const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {
