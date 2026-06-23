@@ -272,7 +272,7 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
 }
 
 // Yandex Metrika ID
-const METRIKA_ID = 109078887
+const METRIKA_ID = 109414926
 
 // Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {

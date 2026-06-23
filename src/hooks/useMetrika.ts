@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 
-const METRIKA_ID = 109078887
+const METRIKA_ID = 109414926
 
 /**
  * Custom hook for Yandex Metrika page hit tracking
