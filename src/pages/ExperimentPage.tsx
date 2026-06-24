@@ -274,7 +274,7 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
 // Yandex Metrika ID
 const METRIKA_ID = 109414926
 
-// Track task success and send to Yandex Metrika
+/* Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {
   const isCorrect = currentZOffset === TARGET_Z_OFFSET
   
@@ -284,9 +284,12 @@ function trackTaskSuccess(currentZOffset: number) {
     targetValue: TARGET_Z_OFFSET,
     isCorrect: isCorrect
   })
-  
+    //свой кривой тест для VITE_METRIKA
+    //console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
+
   // Send to Yandex Metrika
   if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    //window.ym(import.meta.env.VITE_YANDEX_METRIKA_ID, 'reachGoal', goal, params)
     window.ym(METRIKA_ID, 'params', {
       zOffset: currentZOffset,
       targetValue: TARGET_Z_OFFSET,
@@ -294,6 +297,45 @@ function trackTaskSuccess(currentZOffset: number) {
     })
   }
 }
+*/
+
+function trackTaskSuccess(currentZOffset: number) {
+  const isCorrect = currentZOffset === TARGET_Z_OFFSET
+
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.ym === 'function'
+  ) {
+    window.ym(
+      109414926,
+      'reachGoal',
+      'isCorrect',
+      {
+        zOffset: currentZOffset,
+        targetValue: TARGET_Z_OFFSET,
+        isCorrect
+      }
+    )
+  }
+
+  console.log('[Metrika]', {
+    zOffset: currentZOffset,
+    targetValue: TARGET_Z_OFFSET,
+    isCorrect
+  })
+}
+
+
+
+
+
+
+//window.ym(109414926, 'reachGoal', 'isCorrect', {isCorrect})
+
+
+
+
+
 
 export const ExperimentPage: React.FC = () => {
   const navigate = useNavigate()
@@ -366,6 +408,8 @@ export const ExperimentPage: React.FC = () => {
     console.log('[Finish] yOffset:', yOffset, 'zOffset:', zOffset)
     logFinish()
     analytics.trackFinish()
+    //свой кривой тест для VITE_METRIKA
+    console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
   }
 
   const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {
