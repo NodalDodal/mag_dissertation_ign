@@ -58,7 +58,7 @@ const initialState = {
   yThreshold: 0,
   zThreshold: 0,
   uvCorrectionStrength: 1, // 100% default
-  selectedMaterial: 'dark-wood-stain',
+  selectedMaterial: 'Aluminum-Scuffed',
   variant: null,
   sessionStartTime: 0,
   interactionLogs: [],

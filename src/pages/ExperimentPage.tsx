@@ -34,8 +34,6 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
 ]
 
 // Target zOffset value for task success (in mm)
-const TARGET_Z_OFFSET = 0.84
-
 interface SceneProps {
   zones?: ZoneConfigUI[]
 }
@@ -274,6 +272,11 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
 // Yandex Metrika ID
 const METRIKA_ID = 109414926
 
+// Target values for task validation
+const TARGET_Z_OFFSET = 0.84
+const TARGET_Y_OFFSET = 1.345
+const TARGET_MATERIAL = 'dark-wood-stain'
+
 /* Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {
   const isCorrect = currentZOffset === TARGET_Z_OFFSET
@@ -318,9 +321,61 @@ function trackTaskSuccess(currentZOffset: number) {
     )
   }
 
-  console.log('[Metrika]', {
+  console.log('[Metrika] isCorrect:', {
     zOffset: currentZOffset,
     targetValue: TARGET_Z_OFFSET,
+    isCorrect
+  })
+}
+
+function trackYTaskSuccess(currentYOffset: number) {
+  const isCorrect = currentYOffset === TARGET_Y_OFFSET
+
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.ym === 'function'
+  ) {
+    window.ym(
+      109414926,
+      'reachGoal',
+      'yCorrect',
+      {
+        yOffset: currentYOffset,
+        targetValue: TARGET_Y_OFFSET,
+        isCorrect
+      }
+    )
+  }
+
+  console.log('[Metrika] yCorrect:', {
+    yOffset: currentYOffset,
+    targetValue: TARGET_Y_OFFSET,
+    isCorrect
+  })
+}
+
+function trackMaterialTaskSuccess(currentMaterial: string) {
+  const isCorrect = currentMaterial === TARGET_MATERIAL
+
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.ym === 'function'
+  ) {
+    window.ym(
+      109414926,
+      'reachGoal',
+      'isMatCorrect',
+      {
+        materialValue: currentMaterial,
+        targetMaterial: TARGET_MATERIAL,
+        isCorrect
+      }
+    )
+  }
+
+  console.log('[Metrika] isMatCorrect:', {
+    materialValue: currentMaterial,
+    targetMaterial: TARGET_MATERIAL,
     isCorrect
   })
 }
@@ -345,7 +400,17 @@ export const ExperimentPage: React.FC = () => {
   
   // Force new variant on every mount, ignoring any stored state
   
-  const { xOffset, yOffset, zOffset, logFinish } = useStore()
+  const { xOffset, yOffset, zOffset, selectedMaterial, logFinish } = useStore()
+
+  // Track yOffset changes
+  useEffect(() => {
+    trackYTaskSuccess(yOffset)
+  }, [yOffset])
+
+  // Track material changes
+  useEffect(() => {
+    trackMaterialTaskSuccess(selectedMaterial)
+  }, [selectedMaterial])
 
   useEffect(() => {
     // Rotate the route `id` only on a real browser refresh (reload).

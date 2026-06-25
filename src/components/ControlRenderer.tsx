@@ -153,7 +153,7 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
   }
 
   const inputLabel = isOffset ? `${item.label} (мм)` : item.label
-  const step = isOffset ? 10 : 0.01
+  const step = isOffset ? 5 : 0.01
   const min = isOffset ? MIN_DISPLAY_MM : 0
   const max = isOffset ? MAX_DISPLAY_MM : 2
 
@@ -184,7 +184,7 @@ function SliderControlComponent({ item, value, onChange }: { item: ControlItem; 
   // For offset controls, use mm values for display and slider
   const sliderMin = isOffset ? MIN_DISPLAY_MM : -2
   const sliderMax = isOffset ? MAX_DISPLAY_MM : 2
-  const sliderStep = isOffset ? 10 : 0.01
+  const sliderStep = isOffset ? 5 : 0.01
   const displayValue = isOffset ? scaleToMm(value) : value
 
   const accentColor = item.axis === 'x' ? 'accent-blue-500' : item.axis === 'y' ? 'accent-green-500' : 'accent-purple-500'
@@ -290,8 +290,8 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
 
   const sliderMin = isOffset ? MIN_DISPLAY_MM : -2
   const sliderMax = isOffset ? MAX_DISPLAY_MM : 2
-  const sliderStep = isOffset ? 10 : 0.01
-  const inputStep = isOffset ? 10 : 0.01
+  const sliderStep = isOffset ? 5 : 0.01
+  const inputStep = isOffset ? 5 : 0.01
 
   const displayLabel = isOffset ? `${item.label} (мм)` : item.label
 
