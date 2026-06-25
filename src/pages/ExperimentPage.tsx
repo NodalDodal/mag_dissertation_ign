@@ -10,6 +10,7 @@ import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { GizmoDragController } from '../components/GizmoSystem'
 import { DimensionLabels } from '../components/DimensionLabels'
+import { MaterialDropdown } from '../components/MaterialDropdown'
 import { ModalSystem } from '../components/ModalSystem'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
@@ -37,6 +38,7 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
 // Target zOffset value for task success (in mm)
 interface SceneProps {
   zones?: ZoneConfigUI[]
+  isPage4?: boolean
 }
 
 function GLTFModel({ zones = [] }: SceneProps) {
@@ -227,16 +229,17 @@ function Loader() {
   )
 }
 
-function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+function SceneContent({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: boolean; isPage4?: boolean }) {
   return (
     <OrbitControlsWrapper>
       <Environment preset="warehouse" />
-      <ambientLight intensity={0.0001} color="#ffffff" />
-      <directionalLight position={[5, 5, 5]} intensity={0.01} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <ambientLight intensity={0.2} color="#ffffff" />
+      <directionalLight position={[5, 5, 5]} intensity={0.5} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
         {showGizmos && <DimensionLabels />}
+        {isPage4 && <MaterialDropdown visible={isPage4} />}
         <GizmoDragController />
       </Suspense>
       <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
@@ -244,7 +247,7 @@ function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean 
   )
 }
 
-function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+function Scene3D({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: boolean }) {
   return (
     <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       <Canvas 
@@ -253,7 +256,7 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
         className="w-full h-full" 
         shadows
       >
-        <SceneContent showGizmos={showGizmos} zones={zones} />
+        <SceneContent showGizmos={showGizmos} zones={zones} isPage4={isPage4} />
       </Canvas>
     </div>
   )
@@ -490,11 +493,12 @@ export const ExperimentPage: React.FC = () => {
 
   const hasSidebar = needsSidebar(variant)
   const showGizmos = variant.controlType === 'gizmo' || variant.controlType === 'hybrid'
+  const isPage4 = variant.id === 'v4'
 
   return (
     <div className="w-full h-screen bg-slate-900 relative overflow-hidden">
       <ModalSystem showModals={showModals} />
-      <Scene3D showGizmos={showGizmos} zones={zoneConfigs} />
+      <Scene3D showGizmos={showGizmos} zones={zoneConfigs} isPage4={isPage4} />
       
       {hasSidebar && (
         <Sidebar position={variant.sidebarPosition}>
