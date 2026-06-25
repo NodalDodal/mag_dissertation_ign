@@ -79,19 +79,17 @@ function GizmoArrow({ axis, basePosition }: GizmoArrowProps) {
     }
     dragStateRef.current.initialOffset = getAxisOffset()
     
-    // Create drag plane perpendicular to axis
-    const normal = new THREE.Vector3()
-    switch (axis) {
-      case 'x': normal.set(1, 0, 0); break
-      case 'y': normal.set(0, 1, 0); break
-      case 'z': normal.set(0, 0, 1); break
-    }
-    dragStateRef.current.plane.setFromNormalAndCoplanarPoint(normal, e.point || dragStateRef.current.startPoint)
+    // Create drag plane PERPENDICULAR TO CAMERA (not to axis)
+    // This ensures proper intersection tracking during mouse movement
+    const cameraDir = new THREE.Vector3()
+    camera.getWorldDirection(cameraDir)
+    cameraDir.negate() // Plane faces camera
+    dragStateRef.current.plane.setFromNormalAndCoplanarPoint(cameraDir, e.point || dragStateRef.current.startPoint)
     
     gl.domElement.style.cursor = 'grabbing'
     
     console.log(`[Gizmo] Drag started on ${axis} axis, initial offset: ${dragStateRef.current.initialOffset}`)
-  }, [gl, axis, getAxisOffset, setIsDragging])
+  }, [gl, camera, axis, getAxisOffset, setIsDragging])
 
   const handlePointerUp = useCallback(() => {
     if (dragStateRef.current.isDragging) {
@@ -110,7 +108,6 @@ function GizmoArrow({ axis, basePosition }: GizmoArrowProps) {
   const handlePointerMove = useCallback((e: PointerEvent) => {
     if (!dragStateRef.current.isDragging) return
     
-    // Calculate mouse position in normalized device coordinates
     const rect = gl.domElement.getBoundingClientRect()
     const mouse = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -119,34 +116,29 @@ function GizmoArrow({ axis, basePosition }: GizmoArrowProps) {
     
     raycaster.setFromCamera(mouse, camera)
     
-    // Find intersection with drag plane
     const intersection = new THREE.Vector3()
     if (raycaster.ray.intersectPlane(dragStateRef.current.plane, intersection)) {
-      // Calculate new position along axis
-      let newOffset = 0
+      const startPoint = dragStateRef.current.startPoint
+      let deltaFromStart = 0
       
       switch (axis) {
         case 'x':
-          newOffset = intersection.x - basePosition[0]
+          deltaFromStart = intersection.x - startPoint.x
           break
         case 'y':
-          newOffset = intersection.y - basePosition[1]
+          deltaFromStart = intersection.y - startPoint.y
           break
         case 'z':
-          newOffset = intersection.z - basePosition[2]
+          deltaFromStart = intersection.z - startPoint.z
           break
       }
       
-      // Clamp to [-2, 2] range
+      let newOffset = dragStateRef.current.initialOffset + deltaFromStart
       newOffset = Math.max(-2, Math.min(2, newOffset))
       
-      // Apply offset to store
       setOffset(axis, newOffset)
-      
-      const delta = newOffset - dragStateRef.current.initialOffset
-      console.log(`[Gizmo] ${axis} axis: delta=${delta.toFixed(3)}, new offset=${newOffset.toFixed(3)}`)
     }
-  }, [gl, camera, raycaster, axis, basePosition, setOffset])
+  }, [gl, camera, raycaster, axis, setOffset])
 
   // Global event listeners
   useEffect(() => {
