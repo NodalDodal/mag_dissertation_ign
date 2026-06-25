@@ -13,7 +13,7 @@ export interface MaterialPreset {
 
 export const MATERIALS: Record<string, MaterialPreset> = {
   'dark-wood-stain': {
-    name: 'Дуб Венге',
+    name: 'Дуб',
     map: '/materials/dark-wood-stain/dark-wood-stain_albedo.png',
     normalMap: '/materials/dark-wood-stain/dark-wood-stain_normal-ogl.png',
     roughnessMap: '/materials/dark-wood-stain/dark-wood-stain_metallic-dark-wood-stain_roughness.png',

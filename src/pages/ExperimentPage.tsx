@@ -55,6 +55,22 @@ function GLTFModel({ zones = [] }: SceneProps) {
     ...(materialConfig.roughnessMap && { roughnessMap: materialConfig.roughnessMap }),
   })
   
+  // Reset geometry transforms on mount
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.updateWorldMatrix(true, false)
+        const worldMatrix = child.matrixWorld.clone()
+        child.geometry.applyMatrix4(worldMatrix)
+        child.position.set(0, 0, 0)
+        child.rotation.set(0, 0, 0)
+        child.scale.set(1, 1, 1)
+        child.updateMatrix()
+        child.updateMatrixWorld()
+      }
+    })
+  }, [scene])
+  
   // Apply textures to meshes
   useEffect(() => {
     if (!scene || !textures) return
@@ -76,34 +92,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
     })
     console.log('[Material] Applied:', selectedMaterial)
   }, [scene, textures, selectedMaterial])
-  
-  useEffect(() => {
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material) {
-        const materials = Array.isArray(child.material) ? child.material : [child.material]
-        materials.forEach((mat: THREE.Material) => {
-          if (mat && 'map' in mat && (mat as THREE.MeshStandardMaterial).map) {
-            const map = (mat as THREE.MeshStandardMaterial).map
-            if (map) {
-              map.colorSpace = THREE.SRGBColorSpace
-              map.needsUpdate = true
-            }
-          }
-          ;(mat as THREE.MeshStandardMaterial).needsUpdate = true
-        })
-      }
-      if (child instanceof THREE.Mesh) {
-        child.updateWorldMatrix(true, false)
-        const worldMatrix = child.matrixWorld.clone()
-        child.geometry.applyMatrix4(worldMatrix)
-        child.position.set(0, 0, 0)
-        child.rotation.set(0, 0, 0)
-        child.scale.set(1, 1, 1)
-        child.updateMatrix()
-        child.updateMatrixWorld()
-      }
-    })
-  }, [scene])
 
 
   const originalPositions = useMemo(() => {
@@ -242,9 +230,9 @@ function Loader() {
 function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
   return (
     <OrbitControlsWrapper>
-      <Environment preset="city" />
-      <ambientLight intensity={0.4} color="#ffffff" />
-      <directionalLight position={[5, 5, 5]} intensity={2} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <Environment preset="warehouse" />
+      <ambientLight intensity={0.0001} color="#ffffff" />
+      <directionalLight position={[5, 5, 5]} intensity={0.01} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
