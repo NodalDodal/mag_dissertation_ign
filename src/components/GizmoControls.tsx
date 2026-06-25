@@ -190,9 +190,9 @@ function GizmoArrow({ axis, basePosition }: GizmoArrowProps) {
 export const GizmoControls: React.FC = () => {
   // Base positions for gizmo arrows
   const basePositions: Record<string, [number, number, number]> = {
-    x: [1.5, 0, 0],
-    y: [0, 1.5, 0],
-    z: [0, 0, 1.5],
+    x: [2.5, 0, 0],
+    y: [0, 2.5, 0],
+    z: [0, 0, 2.5],
   }
 
   return (

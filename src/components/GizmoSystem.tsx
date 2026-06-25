@@ -264,10 +264,10 @@ export function GizmoDragController() {
     if (!arrow_r && !arrow_u && !arrow_th) return
     
     // Convert scale offsets to mm, then to world position
-    // Base position is 1.5, then add the mm-converted offset
-    const xPos = 1.5 + scaleToMm(xOffset) / 1000 // Convert mm back to world units
-    const yPos = 1.5 + scaleToMm(yOffset) / 1000
-    const zPos = 1.5 + scaleToMm(zOffset) / 1000
+    // Base position is 2.5, then add the mm-converted offset
+    const xPos = 2.5 + scaleToMm(xOffset) / 1000 // Convert mm back to world units
+    const yPos = 2.5 + scaleToMm(yOffset) / 1000
+    const zPos = 2.5 + scaleToMm(zOffset) / 1000
     
     if (arrow_r) arrow_r.position.set(xPos, 0, 0)
     if (arrow_u) arrow_u.position.set(0, yPos, 0)
