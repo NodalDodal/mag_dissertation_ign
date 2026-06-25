@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo, Suspense } from 'react'
+import React, { useEffect, useState, useMemo, Suspense, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Canvas } from '@react-three/fiber'
 import { useGLTF, Environment, useTexture } from '@react-three/drei'
@@ -10,6 +10,7 @@ import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { GizmoDragController } from '../components/GizmoSystem'
 import { DimensionLabels } from '../components/DimensionLabels'
+import { MaterialDropdown } from '../components/MaterialDropdown'
 import { ModalSystem } from '../components/ModalSystem'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
@@ -34,64 +35,25 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
   { id: 'z_z', axis: 'z', direction: 'positive', threshold: 0, offset: 0, enabled: true },
 ]
 
-// Target zOffset value for task success (in mm)
 interface SceneProps {
   zones?: ZoneConfigUI[]
+  isPage4?: boolean
 }
 
 function GLTFModel({ zones = [] }: SceneProps) {
-  const { scene } = useGLTF('/test4.gltf')
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
-  const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
-  const [initialized, setInitialized] = useState(false)
+  const { scene } = useGLTF('/test5.gltf')
+  const sceneRef = useRef(scene)
+  sceneRef.current = scene
   
+  const [initialized, setInitialized] = useState(false)
   const { uvCorrectionStrength, selectedMaterial } = useStore()
   
   // Load textures for selected material
   const materialConfig = MATERIALS[selectedMaterial] || MATERIALS['dark-wood-stain']
-  const textures = useTexture({
-    map: materialConfig.map,
-    ...(materialConfig.normalMap && { normalMap: materialConfig.normalMap }),
-    ...(materialConfig.roughnessMap && { roughnessMap: materialConfig.roughnessMap }),
-  })
-  
-  // Apply textures to meshes
-  useEffect(() => {
-    if (!scene || !textures) return
-    scene.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material) {
-        const mat = child.material as THREE.MeshStandardMaterial
-        if (textures.map) {
-          mat.map = textures.map
-          mat.map.colorSpace = THREE.SRGBColorSpace
-        }
-        if (textures.normalMap) {
-          mat.normalMap = textures.normalMap
-        }
-        if (textures.roughnessMap) {
-          mat.roughnessMap = textures.roughnessMap
-        }
-        mat.needsUpdate = true
-      }
-    })
-    console.log('[Material] Applied:', selectedMaterial)
-  }, [scene, textures, selectedMaterial])
+  const texture = useTexture(materialConfig.map)
   
   useEffect(() => {
     scene.traverse((child) => {
-      if (child instanceof THREE.Mesh && child.material) {
-        const materials = Array.isArray(child.material) ? child.material : [child.material]
-        materials.forEach((mat: THREE.Material) => {
-          if (mat && 'map' in mat && (mat as THREE.MeshStandardMaterial).map) {
-            const map = (mat as THREE.MeshStandardMaterial).map
-            if (map) {
-              map.colorSpace = THREE.SRGBColorSpace
-              map.needsUpdate = true
-            }
-          }
-          ;(mat as THREE.MeshStandardMaterial).needsUpdate = true
-        })
-      }
       if (child instanceof THREE.Mesh) {
         child.updateWorldMatrix(true, false)
         const worldMatrix = child.matrixWorld.clone()
@@ -104,7 +66,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
       }
     })
   }, [scene])
-
 
   const originalPositions = useMemo(() => {
     const positions: THREE.Vector3[] = []
@@ -123,16 +84,12 @@ function GLTFModel({ zones = [] }: SceneProps) {
         }
       }
     })
-    if (geometryRef) setModelGeometry(geometryRef)
-    return positions
-  }, [scene])
-
-  // Initialize UV corrector data once when scene loads
-  useEffect(() => {
-    if (!initialized && scene) {
+    if (geometryRef && !initialized) {
       initializeSceneUVs(scene)
+      setInitialized(true)
       console.log('[UVCorrector] Initialized')
     }
+    return positions
   }, [scene, initialized])
 
   useEffect(() => {
@@ -196,7 +153,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
             selected.push(idx)
           }
           
-          // Apply UV correction if enabled
           if (uvCorrectionStrength > 0 && selected.length > 0) {
             correctSceneUVs(scene, selected, uvCorrectionStrength)
           }
@@ -205,7 +161,6 @@ function GLTFModel({ zones = [] }: SceneProps) {
             const orig = originalPositions[i]
             if (orig) posAttr.setXYZ(i, orig.x, orig.y, orig.z)
           }
-          // Reset UVs when no offsets
           if (initialized) {
             resetSceneUVs(scene)
           }
@@ -215,20 +170,27 @@ function GLTFModel({ zones = [] }: SceneProps) {
         geometry.computeVertexNormals()
       }
     })
-
-
-    setSelectedIndices(selected)
   }, [scene, originalPositions, zones, uvCorrectionStrength, initialized])
 
-  return (
-    <group>
-      <primitive object={scene} />
-      {/* <axesHelper args={[2]} /> */}
-    </group>
-  )
+  // Apply material texture
+  useEffect(() => {
+    if (!scene || !texture) return
+    
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material) {
+        const mat = child.material as THREE.MeshStandardMaterial
+        mat.map = texture
+        mat.map.colorSpace = THREE.SRGBColorSpace
+        mat.needsUpdate = true
+      }
+    })
+    console.log('[Material] Applied:', selectedMaterial, materialConfig.map)
+  }, [scene, texture, selectedMaterial, materialConfig.map])
+
+  return <primitive object={scene} />
 }
 
-useGLTF.preload('/test4.gltf')
+useGLTF.preload('/test5.gltf')
 
 function Loader() {
   return (
@@ -239,7 +201,7 @@ function Loader() {
   )
 }
 
-function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+function SceneContent({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: boolean; isPage4?: boolean }) {
   return (
     <OrbitControlsWrapper>
       <Environment preset="city" />
@@ -249,6 +211,7 @@ function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean 
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
         {showGizmos && <DimensionLabels />}
+        {isPage4 && <MaterialDropdown visible={isPage4} />}
         <GizmoDragController />
       </Suspense>
       <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
@@ -256,7 +219,7 @@ function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean 
   )
 }
 
-function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
+function Scene3D({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: boolean }) {
   return (
     <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       <Canvas 
@@ -265,62 +228,26 @@ function Scene3D({ showGizmos, zones }: SceneProps & { showGizmos: boolean }) {
         className="w-full h-full" 
         shadows
       >
-        <SceneContent showGizmos={showGizmos} zones={zones} />
+        <SceneContent showGizmos={showGizmos} zones={zones} isPage4={isPage4} />
       </Canvas>
     </div>
   )
 }
 
-// Yandex Metrika ID
 const METRIKA_ID = 109414926
-
-// Target values for task validation
 const TARGET_Z_OFFSET = 0.84
 const TARGET_Y_OFFSET = 1.345
 const TARGET_MATERIAL = 'dark-wood-stain'
 
-/* Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {
   const isCorrect = currentZOffset === TARGET_Z_OFFSET
-  
-  // Debug logging
-  console.log('Task Success:', {
-    zOffset: currentZOffset,
-    targetValue: TARGET_Z_OFFSET,
-    isCorrect: isCorrect
-  })
-    //свой кривой тест для VITE_METRIKA
-    //console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
 
-  // Send to Yandex Metrika
   if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-    //window.ym(import.meta.env.VITE_YANDEX_METRIKA_ID, 'reachGoal', goal, params)
-    window.ym(METRIKA_ID, 'params', {
+    window.ym(109414926, 'reachGoal', 'isCorrect', {
       zOffset: currentZOffset,
       targetValue: TARGET_Z_OFFSET,
-      isCorrect: isCorrect
+      isCorrect
     })
-  }
-}
-*/
-
-function trackTaskSuccess(currentZOffset: number) {
-  const isCorrect = currentZOffset === TARGET_Z_OFFSET
-
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'isCorrect',
-      {
-        zOffset: currentZOffset,
-        targetValue: TARGET_Z_OFFSET,
-        isCorrect
-      }
-    )
   }
 
   console.log('[Metrika] isCorrect:', {
@@ -333,20 +260,12 @@ function trackTaskSuccess(currentZOffset: number) {
 function trackYTaskSuccess(currentYOffset: number) {
   const isCorrect = currentYOffset === TARGET_Y_OFFSET
 
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'yCorrect',
-      {
-        yOffset: currentYOffset,
-        targetValue: TARGET_Y_OFFSET,
-        isCorrect
-      }
-    )
+  if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    window.ym(109414926, 'reachGoal', 'yCorrect', {
+      yOffset: currentYOffset,
+      targetValue: TARGET_Y_OFFSET,
+      isCorrect
+    })
   }
 
   console.log('[Metrika] yCorrect:', {
@@ -359,20 +278,12 @@ function trackYTaskSuccess(currentYOffset: number) {
 function trackMaterialTaskSuccess(currentMaterial: string) {
   const isCorrect = currentMaterial === TARGET_MATERIAL
 
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'isMatCorrect',
-      {
-        materialValue: currentMaterial,
-        targetMaterial: TARGET_MATERIAL,
-        isCorrect
-      }
-    )
+  if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    window.ym(109414926, 'reachGoal', 'isMatCorrect', {
+      materialValue: currentMaterial,
+      targetMaterial: TARGET_MATERIAL,
+      isCorrect
+    })
   }
 
   console.log('[Metrika] isMatCorrect:', {
@@ -382,41 +293,23 @@ function trackMaterialTaskSuccess(currentMaterial: string) {
   })
 }
 
-
-
-
-
-
-//window.ym(109414926, 'reachGoal', 'isCorrect', {isCorrect})
-
-
-
-
-
-
 export const ExperimentPage: React.FC = () => {
   const navigate = useNavigate()
   const { id: routeId } = useParams()
   const [showModals] = useState(true)
   const [variant, setVariant] = useState<VariantConfig | null>(null)
   
-  // Force new variant on every mount, ignoring any stored state
-  
   const { xOffset, yOffset, zOffset, selectedMaterial, logFinish } = useStore()
 
-  // Track yOffset changes
   useEffect(() => {
     trackYTaskSuccess(yOffset)
   }, [yOffset])
 
-  // Track material changes
   useEffect(() => {
     trackMaterialTaskSuccess(selectedMaterial)
   }, [selectedMaterial])
 
   useEffect(() => {
-    // Rotate the route `id` only on a real browser refresh (reload).
-    // If the user manually types /variant/:id (navigation), we keep their id.
     const currentPage = Number(routeId)
     const allowedPages = [1, 2, 3, 4, 5]
 
@@ -425,18 +318,8 @@ export const ExperimentPage: React.FC = () => {
       return
     }
 
-    const navEntry = performance.getEntriesByType?.('navigation')?.[0] as
-      | PerformanceNavigationTiming
-      | undefined
-    const isReload =
-      (navEntry?.type === 'reload') ||
-      // Legacy fallback
-      // eslint-disable-next-line deprecation/deprecation
-      (typeof performance !== 'undefined' &&
-        // eslint-disable-next-line deprecation/deprecation
-        typeof performance.navigation !== 'undefined' &&
-        // eslint-disable-next-line deprecation/deprecation
-        performance.navigation.type === 1)
+    const navEntry = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined
+    const isReload = navEntry?.type === 'reload' || (typeof performance !== 'undefined' && typeof performance.navigation !== 'undefined' && performance.navigation.type === 1)
 
     if (!isReload) return
 
@@ -456,11 +339,8 @@ export const ExperimentPage: React.FC = () => {
       setVariant(randomVariant)
       analytics.trackSessionStart(randomVariant.id)
       
-      // Send variant info to Yandex Metrika
       if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-        window.ym(METRIKA_ID, 'params', {
-          variant: randomVariant.id
-        })
+        window.ym(METRIKA_ID, 'params', { variant: randomVariant.id })
       }
     } else {
       navigate('/', { replace: true })
@@ -468,17 +348,13 @@ export const ExperimentPage: React.FC = () => {
   }, [routeId, navigate])
 
   const handleFinish = () => {
-    // Track task success
     trackTaskSuccess(zOffset)
     
-    // Логирование значений yOffset и zOffset при нажатии кнопки "Закончить"
     console.log('[Finish] yOffset:', yOffset, 'zOffset:', zOffset)
     logFinish()
     analytics.trackFinish()
-    //свой кривой тест для VITE_METRIKA
     console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
     
-    // Redirect to Yandex Forms
     window.location.href = 'https://forms.yandex.ru/cloud/6a3d0d86068ff0b456f022a3'
   }
 
@@ -502,11 +378,12 @@ export const ExperimentPage: React.FC = () => {
 
   const hasSidebar = needsSidebar(variant)
   const showGizmos = variant.controlType === 'gizmo' || variant.controlType === 'hybrid'
+  const isPage4 = variant.id === 'v4'
 
   return (
     <div className="w-full h-screen bg-slate-900 relative overflow-hidden">
       <ModalSystem showModals={showModals} />
-      <Scene3D showGizmos={showGizmos} zones={zoneConfigs} />
+      <Scene3D showGizmos={showGizmos} zones={zoneConfigs} isPage4={isPage4} />
       
       {hasSidebar && (
         <Sidebar position={variant.sidebarPosition}>

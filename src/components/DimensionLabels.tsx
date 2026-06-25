@@ -15,11 +15,11 @@ export function DimensionLabels() {
   const zOffsetMm = useMemo(() => scaleToMm(zOffset), [zOffset])
   const yOffsetMm = useMemo(() => scaleToMm(yOffset), [yOffset])
   
-  // yOffset label moves with zOffset - shifted up along Y axis to avoid arrow
-  const zLabelPos = useMemo(() => [0, 0.8, 1.5 + zOffset] as [number, number, number], [zOffset])
+  // yOffset label moves with zOffset - shifted up and further along Y axis
+  const zLabelPos = useMemo(() => [0, 1.2, 2.0 + zOffset] as [number, number, number], [zOffset])
   
-  // zOffset label moves with yOffset - shifted along Z axis to avoid arrow
-  const yLabelPos = useMemo(() => [0, 1.5 + yOffset, 0.8] as [number, number, number], [yOffset])
+  // zOffset label moves with yOffset - shifted higher and along Z axis
+  const yLabelPos = useMemo(() => [0, 2.0 + yOffset, 1.2] as [number, number, number], [yOffset])
   
   return (
     <group>

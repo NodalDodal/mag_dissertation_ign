@@ -188,11 +188,11 @@ function GizmoArrow({ axis, basePosition }: GizmoArrowProps) {
  * Vertices with X>0, Y>0, Z>0 will be shifted by these offsets
  */
 export const GizmoControls: React.FC = () => {
-  // Base positions for gizmo arrows
+  // Base positions for gizmo arrows - moved further to avoid overlapping with labels
   const basePositions: Record<string, [number, number, number]> = {
     x: [1.5, 0, 0],
-    y: [0, 1.5, 0],
-    z: [0, 0, 1.5],
+    y: [0, 2.0, 0],
+    z: [0, 0, 2.0],
   }
 
   return (
