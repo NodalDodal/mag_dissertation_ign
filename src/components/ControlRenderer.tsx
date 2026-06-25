@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useStore } from '../store/useStore'
 import { analytics } from '../utils/analytics'
 import { getMaterialKeys, getMaterialName } from '../utils/materialConfig'
@@ -8,7 +8,6 @@ import {
   clampScale,
   MIN_DISPLAY_MM,
   MAX_DISPLAY_MM,
-  parseMmInput,
   formatMmDisplay,
 } from '../utils/unitConversion'
 
@@ -101,32 +100,79 @@ function InputControl({ item, value, onChange }: { item: ControlItem; value: num
   
   // For offset controls, use mm values
   const displayValue = isOffset ? scaleToMm(value) : value
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [localValue, setLocalValue] = React.useState(String(displayValue))
+  const lastValidValueRef = React.useRef(displayValue)
+
+  // Update local value when store value changes externally
+  React.useEffect(() => {
+    setLocalValue(String(displayValue))
+    lastValidValueRef.current = displayValue
+  }, [displayValue])
+
+  const validateAndSubmit = (inputValue: string) => {
+    // Parse as mm for offset, as-is for threshold
+    const parsed = parseFloat(inputValue)
+    if (isNaN(parsed)) {
+      // Restore last valid value
+      setLocalValue(String(lastValidValueRef.current))
+      return
+    }
+
+    let clampedMm: number
     if (isOffset) {
-      // User enters mm, convert to scale
-      const val = parseMmInput(e.target.value)
-      onChange(val)
+      // Clamp to mm range (300-2000)
+      clampedMm = Math.max(MIN_DISPLAY_MM, Math.min(MAX_DISPLAY_MM, parsed))
+      // Convert to scale and update store
+      const scaleValue = mmToScale(clampedMm)
+      onChange(clampScale(scaleValue))
+      // Sync display
+      setLocalValue(String(scaleToMm(clampedMm)))
+      lastValidValueRef.current = scaleToMm(clampedMm)
     } else {
-      const val = parseFloat(e.target.value) || 0
-      onChange(val)
+      // Threshold: clamp to 0-2
+      clampedMm = Math.max(0, Math.min(2, parsed))
+      onChange(clampedMm)
+      setLocalValue(String(clampedMm))
+      lastValidValueRef.current = clampedMm
+    }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only update local state, no validation
+    setLocalValue(e.target.value)
+  }
+
+  const handleBlur = () => {
+    validateAndSubmit(localValue)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      validateAndSubmit(localValue)
     }
   }
 
   const inputLabel = isOffset ? `${item.label} (мм)` : item.label
+  const step = isOffset ? 10 : 0.01
+  const min = isOffset ? MIN_DISPLAY_MM : 0
+  const max = isOffset ? MAX_DISPLAY_MM : 2
 
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-slate-300 tracking-wide">{inputLabel}</label>
       <input
         type="number"
-        min={isOffset ? MIN_DISPLAY_MM : undefined}
-        max={isOffset ? MAX_DISPLAY_MM : 2}
-        step={isOffset ? 10 : 0.1}
-        value={displayValue}
+        inputMode="numeric"
+        step={step}
+        min={min}
+        max={max}
+        value={localValue}
         onChange={handleChange}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         className="w-full bg-slate-900/70 rounded-xl px-4 py-3 text-slate-200 
                    border border-transparent focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20
-                   transition-all duration-200"
+                   transition-all duration-200" //контроллер для xOffset
       />
     </div>
   )
@@ -187,11 +233,40 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
   // For offset controls, use mm values
   const displayValue = isOffset ? scaleToMm(value) : value
   const [localValue, setLocalValue] = useState(String(displayValue))
+  const lastValidValueRef = useRef(displayValue)
+
+  useEffect(() => {
+    setLocalValue(String(displayValue))
+    lastValidValueRef.current = displayValue
+  }, [displayValue])
+
+  const validateAndSubmit = (inputValue: string) => {
+    const parsed = parseFloat(inputValue)
+    if (isNaN(parsed)) {
+      setLocalValue(String(lastValidValueRef.current))
+      return
+    }
+
+    if (isOffset) {
+      // Clamp to mm range (300-2000)
+      const clampedMm = Math.max(MIN_DISPLAY_MM, Math.min(MAX_DISPLAY_MM, parsed))
+      // Convert to scale and update store
+      const scaleValue = mmToScale(clampedMm)
+      onChange(clampScale(scaleValue))
+      // Sync display
+      setLocalValue(String(scaleToMm(clampedMm)))
+      lastValidValueRef.current = scaleToMm(clampedMm)
+    } else {
+      const clamped = Math.max(0, Math.min(2, parsed))
+      onChange(clamped)
+      setLocalValue(String(clamped))
+      lastValidValueRef.current = clamped
+    }
+  }
 
   const handleSliderChange = (mmValue: number) => {
     setLocalValue(String(mmValue))
     if (isOffset) {
-      // Convert mm to scale
       const scaleValue = mmToScale(mmValue)
       onChange(clampScale(scaleValue))
     } else {
@@ -200,27 +275,23 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value
-    setLocalValue(val)
-    if (isOffset) {
-      // User enters mm, convert to scale
-      const scaleValue = parseMmInput(val)
-      onChange(scaleValue)
-    } else {
-      const num = parseFloat(val)
-      if (!isNaN(num)) {
-        onChange(num)
-      }
-    }
+    setLocalValue(e.target.value)
   }
 
-  useEffect(() => {
-    setLocalValue(String(displayValue))
-  }, [displayValue])
+  const handleBlur = () => {
+    validateAndSubmit(localValue)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      validateAndSubmit(localValue)
+    }
+  }
 
   const sliderMin = isOffset ? MIN_DISPLAY_MM : -2
   const sliderMax = isOffset ? MAX_DISPLAY_MM : 2
   const sliderStep = isOffset ? 10 : 0.01
+  const inputStep = isOffset ? 10 : 0.01
 
   const displayLabel = isOffset ? `${item.label} (мм)` : item.label
 
@@ -230,13 +301,16 @@ function HybridControl({ item, value, onChange }: { item: ControlItem; value: nu
         <label className="text-sm font-medium text-slate-300 tracking-wide">{displayLabel}</label>
         <input
           type="number"
-          min={sliderMin}
-          max={sliderMax}
-          step={isOffset ? 10 : 0.1}
+          inputMode="numeric"
+          step={inputStep}
+          min={isOffset ? MIN_DISPLAY_MM : 0}
+          max={isOffset ? MAX_DISPLAY_MM : 2}
           value={localValue}
           onChange={handleInputChange}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
           className="w-20 bg-slate-900/70 rounded-lg px-2 py-1 text-sm text-slate-200 text-right
-                     border border-transparent focus:border-blue-500/50"
+                     border border-transparent focus:border-blue-500/50 no-spinner"
         />
       </div>
       <input
@@ -287,18 +361,18 @@ function UVCorrectionSlider({ value, onChange }: { value: number; onChange: (v: 
 /**
  * Material Selector Dropdown
  */
-function MaterialSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function MaterialSelector({ materialValue, onChange }: { materialValue: string; onChange: (v: string) => void }) {
   const materialKeys = getMaterialKeys()
 
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-slate-300 tracking-wide">Material</label>
       <select
-        value={value}
+        value={materialValue}
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-slate-900/70 rounded-xl px-4 py-3 text-slate-200 
                    border border-transparent focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20
-                   transition-all duration-200 cursor-pointer"
+                   transition-all duration-200 cursor-pointer" //дропдаун на выбор материала
       >
         {materialKeys.map((key) => (
           <option key={key} value={key}>
@@ -412,7 +486,7 @@ export const ControlRenderer: React.FC<ControlRendererProps> = ({
   return (
     <div className="space-y-4">
       {/* Material Selector */}
-      <MaterialSelector value={selectedMaterial} onChange={handleMaterialChange} />
+      <MaterialSelector materialValue={selectedMaterial} onChange={handleMaterialChange} />
       
       {/* Controls */}
       {items.map((item) => (

@@ -41,7 +41,7 @@ interface SceneProps {
 }
 
 function GLTFModel({ zones = [] }: SceneProps) {
-  const { scene } = useGLTF('/test3.gltf')
+  const { scene } = useGLTF('/test4.gltf')
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   const [initialized, setInitialized] = useState(false)
@@ -229,7 +229,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
   )
 }
 
-useGLTF.preload('/test3.gltf')
+useGLTF.preload('/test4.gltf')
 
 function Loader() {
   return (
@@ -410,6 +410,9 @@ export const ExperimentPage: React.FC = () => {
     analytics.trackFinish()
     //свой кривой тест для VITE_METRIKA
     console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
+    
+    // Redirect to Yandex Forms
+    window.location.href = 'https://forms.yandex.ru/cloud/6a3d0d86068ff0b456f022a3'
   }
 
   const zoneConfigs: ZoneConfigUI[] = DEFAULT_ZONES.map(zone => {

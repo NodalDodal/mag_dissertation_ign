@@ -69,17 +69,17 @@
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_normal-ogl",
-			"uri":"test3/dark-wood-stain_normal-ogl.png"
+			"uri":"test4/dark-wood-stain_normal-ogl.png"
 		},
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_albedo",
-			"uri":"test3/dark-wood-stain_albedo.png"
+			"uri":"test4/dark-wood-stain_albedo.png"
 		},
 		{
 			"mimeType":"image/png",
 			"name":"dark-wood-stain_metallic-dark-wood-stain_roughness",
-			"uri":"test3/dark-wood-stain_metallic-dark-wood-stain_roughness.png"
+			"uri":"test4/dark-wood-stain_metallic-dark-wood-stain_roughness.png"
 		}
 	],
 	"accessors":[
@@ -153,7 +153,7 @@
 	"buffers":[
 		{
 			"byteLength":38016,
-			"uri":"test3.bin"
+			"uri":"test4.bin"
 		}
 	]
 }
