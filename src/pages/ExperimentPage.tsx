@@ -232,9 +232,9 @@ function Loader() {
 function SceneContent({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: boolean; isPage4?: boolean }) {
   return (
     <OrbitControlsWrapper>
-      <Environment preset="warehouse" />
-      <ambientLight intensity={0.2} color="#ffffff" />
-      <directionalLight position={[5, 5, 5]} intensity={0.5} color="#ffffff" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+      <Environment files="/empty_warehouse_01_1k.hdr" />
+      <ambientLight intensity={0.6} color="#ffffff" />
+      <directionalLight position={[5, 5, 5]} intensity={0.3} color="#d1804a" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
@@ -252,7 +252,13 @@ function Scene3D({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: bool
     <div className="w-full h-full absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       <Canvas 
         camera={{ position: [0, 0, 5], fov: 50 }} 
-        gl={{ antialias: true, alpha: true, outputColorSpace: THREE.SRGBColorSpace }} 
+        gl={{ 
+          antialias: true, 
+          alpha: true, 
+          outputColorSpace: THREE.SRGBColorSpace,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 0.5
+        }} 
         className="w-full h-full" 
         shadows
       >
