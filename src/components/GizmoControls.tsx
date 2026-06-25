@@ -197,7 +197,7 @@ export const GizmoControls: React.FC = () => {
 
   return (
     <group>
-      <GizmoArrow axis="x" basePosition={basePositions.x} />
+      {/* <GizmoArrow axis="x" basePosition={basePositions.x} /> */}
       <GizmoArrow axis="y" basePosition={basePositions.y} />
       <GizmoArrow axis="z" basePosition={basePositions.z} />
     </group>

@@ -9,6 +9,7 @@ import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter }
 import { ControlRenderer } from '../components/ControlRenderer'
 import { GizmoControls } from '../components/GizmoControls'
 import { GizmoDragController } from '../components/GizmoSystem'
+import { DimensionLabels } from '../components/DimensionLabels'
 import { ModalSystem } from '../components/ModalSystem'
 import { OrbitControlsWrapper } from '../components/OrbitControlsContext'
 import { useStore } from '../store/useStore'
@@ -222,7 +223,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
   return (
     <group>
       <primitive object={scene} />
-      <axesHelper args={[2]} />
+      {/* <axesHelper args={[2]} /> */}
     </group>
   )
 }
@@ -247,6 +248,7 @@ function SceneContent({ showGizmos, zones }: SceneProps & { showGizmos: boolean 
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
         {showGizmos && <GizmoControls />}
+        {showGizmos && <DimensionLabels />}
         <GizmoDragController />
       </Suspense>
       <gridHelper args={[10, 10, '#334155', '#1e293b']} position={[0, -2, 0]} />
