@@ -1,8 +1,9 @@
 
-import React, { useEffect, useState, useMemo, Suspense } from 'react'
+import React, { useEffect, useState, useMemo, Suspense, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Canvas } from '@react-three/fiber'
-import { useGLTF, Environment, useTexture } from '@react-three/drei'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { useGLTF, Environment, useTexture, MeshTransmissionMaterial } from '@react-three/drei'
+import { useGLTF as useFlowerGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 import { Sidebar, SidebarHeader, SidebarContent, SidebarSection, SidebarFooter } from '../components/Sidebar'
@@ -35,14 +36,13 @@ const DEFAULT_ZONES: ZoneConfigUI[] = [
   { id: 'z_z', axis: 'z', direction: 'positive', threshold: 0, offset: 0, enabled: true },
 ]
 
-// Target zOffset value for task success (in mm)
 interface SceneProps {
   zones?: ZoneConfigUI[]
   isPage4?: boolean
 }
 
 function GLTFModel({ zones = [] }: SceneProps) {
-  const { scene } = useGLTF('/test4.gltf')
+  const { scene } = useGLTF('/test5.gltf')
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [modelGeometry, setModelGeometry] = useState<THREE.BufferGeometry | null>(null)
   const [initialized, setInitialized] = useState(false)
@@ -121,6 +121,7 @@ function GLTFModel({ zones = [] }: SceneProps) {
   useEffect(() => {
     if (!initialized && scene) {
       initializeSceneUVs(scene)
+      setInitialized(true)
       console.log('[UVCorrector] Initialized')
     }
   }, [scene, initialized])
@@ -213,12 +214,107 @@ function GLTFModel({ zones = [] }: SceneProps) {
   return (
     <group>
       <primitive object={scene} />
-      {/* <axesHelper args={[2]} /> */}
     </group>
   )
 }
 
-useGLTF.preload('/test4.gltf')
+useGLTF.preload('/test5.gltf')
+useFlowerGLTF.preload('/flower.glb')
+
+/**
+ * FlowerModel - loads flower.glb model with scale and position props
+ */
+/*function FlowerModel({ scaleX = 0.8, scaleY = 0.8, scaleZ = 0.8, position = [-6, -1, 0] }: { scaleX?: number; scaleY?: number; scaleZ?: number; position?: [number, number, number] }) {
+  const { scene } = useFlowerGLTF('/flower.glb')
+  
+  return (
+    <primitive object={scene} scale={[scaleX, scaleY, scaleZ]} position={position} />
+  )
+}
+**/
+/**
+ * GlassPanel - transparent glass panel that syncs with model dimensions
+ * X = 70 (constant), Y = yOffset - 15, Z = zOffset - 15
+ * Uses useFrame for smooth updates without re-renders
+ */
+function GlassPanel() {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const { yOffset, zOffset } = useStore()
+  
+  // Update geometry scale directly in useFrame for performance
+  useFrame(() => {
+    if (!meshRef.current) return
+    
+    const boxY = Math.max(1, yOffset+1.85)
+    const boxZ = Math.max(1, zOffset+1.7)
+    
+    // Update scale
+    meshRef.current.scale.set(0.2, boxY, boxZ)
+    meshRef.current.position.set(0, boxY / 2 - 1, boxZ / 2 -1)
+  })
+  
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[0.2, 1, 1]} />
+      <MeshTransmissionMaterial
+        resolution={512}
+        thickness={0.5}
+        roughness={0.05}
+        transmission={1}
+        ior={1.5}
+        chromaticAberration={0.02}
+        anisotropy={0.1}
+        distortion={0}
+        distortionScale={0}
+        temporalDistortion={0}
+        clearcoat={1}
+        attenuationDistance={0.5}
+        attenuationColor="#ffffff"
+        color="#e0f0ff"
+      />
+    </mesh>
+  )
+}
+
+/**
+ * GlassPanel_2 - duplicate of GlassPanel at same position
+ */
+/*function GlassPanel_2() {
+  const meshRef = useRef<THREE.Mesh>(null)
+  const { yOffset, zOffset } = useStore()
+  
+  useFrame(() => {
+    if (!meshRef.current) return
+    
+    const boxY = Math.max(1, yOffset+1.85)
+    const boxZ = Math.max(1, zOffset+1.7)
+    
+    meshRef.current.scale.set(0.2, boxY, boxZ)
+    meshRef.current.position.set(-0.15, boxY / 2 - 1, boxZ / 2 -1)
+  })
+  
+  return (
+    <mesh ref={meshRef}>
+      <boxGeometry args={[0.2, 1, 1]} />
+      <MeshTransmissionMaterial
+        resolution={512}
+        thickness={0.5}
+        roughness={0.05}
+        transmission={1}
+        ior={1.5}
+        chromaticAberration={0.02}
+        anisotropy={0.1}
+        distortion={0}
+        distortionScale={0}
+        temporalDistortion={0}
+        clearcoat={1}
+        attenuationDistance={0.5}
+        attenuationColor="#ffffff"
+        color="#e0f0ff"
+      />
+    </mesh>
+  )
+}*/
 
 function Loader() {
   return (
@@ -237,6 +333,9 @@ function SceneContent({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos:
       <directionalLight position={[5, 5, 5]} intensity={0.3} color="#d1804a" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <Suspense fallback={<Loader />}>
         <GLTFModel zones={zones} />
+        {/* <FlowerModel /> */}
+        <GlassPanel />
+        {/* <GlassPanel_2 /> */}
         {showGizmos && <GizmoControls />}
         {showGizmos && <DimensionLabels />}
         {isPage4 && <MaterialDropdown visible={isPage4} />}
@@ -268,56 +367,21 @@ function Scene3D({ showGizmos, zones, isPage4 }: SceneProps & { showGizmos: bool
   )
 }
 
-// Yandex Metrika ID
 const METRIKA_ID = 109414926
 
-// Target values for task validation
 const TARGET_Z_OFFSET = 0.84
 const TARGET_Y_OFFSET = 1.345
 const TARGET_MATERIAL = 'dark-wood-stain'
 
-/* Track task success and send to Yandex Metrika
 function trackTaskSuccess(currentZOffset: number) {
   const isCorrect = currentZOffset === TARGET_Z_OFFSET
-  
-  // Debug logging
-  console.log('Task Success:', {
-    zOffset: currentZOffset,
-    targetValue: TARGET_Z_OFFSET,
-    isCorrect: isCorrect
-  })
-    //свой кривой тест для VITE_METRIKA
-    //console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
 
-  // Send to Yandex Metrika
   if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-    //window.ym(import.meta.env.VITE_YANDEX_METRIKA_ID, 'reachGoal', goal, params)
-    window.ym(METRIKA_ID, 'params', {
+    window.ym(109414926, 'reachGoal', 'isCorrect', {
       zOffset: currentZOffset,
       targetValue: TARGET_Z_OFFSET,
-      isCorrect: isCorrect
+      isCorrect
     })
-  }
-}
-*/
-
-function trackTaskSuccess(currentZOffset: number) {
-  const isCorrect = currentZOffset === TARGET_Z_OFFSET
-
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'isCorrect',
-      {
-        zOffset: currentZOffset,
-        targetValue: TARGET_Z_OFFSET,
-        isCorrect
-      }
-    )
   }
 
   console.log('[Metrika] isCorrect:', {
@@ -330,20 +394,12 @@ function trackTaskSuccess(currentZOffset: number) {
 function trackYTaskSuccess(currentYOffset: number) {
   const isCorrect = currentYOffset === TARGET_Y_OFFSET
 
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'yCorrect',
-      {
-        yOffset: currentYOffset,
-        targetValue: TARGET_Y_OFFSET,
-        isCorrect
-      }
-    )
+  if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    window.ym(109414926, 'reachGoal', 'yCorrect', {
+      yOffset: currentYOffset,
+      targetValue: TARGET_Y_OFFSET,
+      isCorrect
+    })
   }
 
   console.log('[Metrika] yCorrect:', {
@@ -356,20 +412,12 @@ function trackYTaskSuccess(currentYOffset: number) {
 function trackMaterialTaskSuccess(currentMaterial: string) {
   const isCorrect = currentMaterial === TARGET_MATERIAL
 
-  if (
-    typeof window !== 'undefined' &&
-    typeof window.ym === 'function'
-  ) {
-    window.ym(
-      109414926,
-      'reachGoal',
-      'isMatCorrect',
-      {
-        materialValue: currentMaterial,
-        targetMaterial: TARGET_MATERIAL,
-        isCorrect
-      }
-    )
+  if (typeof window !== 'undefined' && typeof window.ym === 'function') {
+    window.ym(109414926, 'reachGoal', 'isMatCorrect', {
+      materialValue: currentMaterial,
+      targetMaterial: TARGET_MATERIAL,
+      isCorrect
+    })
   }
 
   console.log('[Metrika] isMatCorrect:', {
@@ -379,41 +427,23 @@ function trackMaterialTaskSuccess(currentMaterial: string) {
   })
 }
 
-
-
-
-
-
-//window.ym(109414926, 'reachGoal', 'isCorrect', {isCorrect})
-
-
-
-
-
-
 export const ExperimentPage: React.FC = () => {
   const navigate = useNavigate()
   const { id: routeId } = useParams()
   const [showModals] = useState(true)
   const [variant, setVariant] = useState<VariantConfig | null>(null)
   
-  // Force new variant on every mount, ignoring any stored state
-  
   const { xOffset, yOffset, zOffset, selectedMaterial, logFinish } = useStore()
 
-  // Track yOffset changes
   useEffect(() => {
     trackYTaskSuccess(yOffset)
   }, [yOffset])
 
-  // Track material changes
   useEffect(() => {
     trackMaterialTaskSuccess(selectedMaterial)
   }, [selectedMaterial])
 
   useEffect(() => {
-    // Rotate the route `id` only on a real browser refresh (reload).
-    // If the user manually types /variant/:id (navigation), we keep their id.
     const currentPage = Number(routeId)
     const allowedPages = [1, 2, 3, 4, 5]
 
@@ -422,18 +452,8 @@ export const ExperimentPage: React.FC = () => {
       return
     }
 
-    const navEntry = performance.getEntriesByType?.('navigation')?.[0] as
-      | PerformanceNavigationTiming
-      | undefined
-    const isReload =
-      (navEntry?.type === 'reload') ||
-      // Legacy fallback
-      // eslint-disable-next-line deprecation/deprecation
-      (typeof performance !== 'undefined' &&
-        // eslint-disable-next-line deprecation/deprecation
-        typeof performance.navigation !== 'undefined' &&
-        // eslint-disable-next-line deprecation/deprecation
-        performance.navigation.type === 1)
+    const navEntry = performance.getEntriesByType?.('navigation')?.[0] as PerformanceNavigationTiming | undefined
+    const isReload = navEntry?.type === 'reload' || (typeof performance !== 'undefined' && typeof performance.navigation !== 'undefined' && performance.navigation.type === 1)
 
     if (!isReload) return
 
@@ -453,11 +473,8 @@ export const ExperimentPage: React.FC = () => {
       setVariant(randomVariant)
       analytics.trackSessionStart(randomVariant.id)
       
-      // Send variant info to Yandex Metrika
       if (typeof window !== 'undefined' && typeof window.ym === 'function') {
-        window.ym(METRIKA_ID, 'params', {
-          variant: randomVariant.id
-        })
+        window.ym(METRIKA_ID, 'params', { variant: randomVariant.id })
       }
     } else {
       navigate('/', { replace: true })
@@ -465,17 +482,13 @@ export const ExperimentPage: React.FC = () => {
   }, [routeId, navigate])
 
   const handleFinish = () => {
-    // Track task success
     trackTaskSuccess(zOffset)
     
-    // Логирование значений yOffset и zOffset при нажатии кнопки "Закончить"
     console.log('[Finish] yOffset:', yOffset, 'zOffset:', zOffset)
     logFinish()
     analytics.trackFinish()
-    //свой кривой тест для VITE_METRIKA
     console.log(import.meta.env.VITE_YANDEX_METRIKA_ID)
     
-    // Redirect to Yandex Forms
     window.location.href = 'https://forms.yandex.ru/cloud/6a3d0d86068ff0b456f022a3'
   }
 

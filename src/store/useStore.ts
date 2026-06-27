@@ -44,7 +44,7 @@ interface ConfiguratorState {
 }
 
 const MIN_SCALE = 0.3
-const MAX_SCALE = 2
+const MAX_SCALE = 4
 
 const clampScale = (value: number): number => {
   return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value))

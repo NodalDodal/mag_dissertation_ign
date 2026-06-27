@@ -8,11 +8,11 @@
  * Formula: displayValueMm = internalScaleValue * 1000
  */
 
-export const SCALE_TO_MM = 1000
+export const SCALE_TO_MM = 500
 
 // Internal scale bounds
 export const MIN_INTERNAL_SCALE = 0.3
-export const MAX_INTERNAL_SCALE = 2.0
+export const MAX_INTERNAL_SCALE = 4.0
 
 // Display bounds (in mm)
 export const MIN_DISPLAY_MM = MIN_INTERNAL_SCALE * SCALE_TO_MM // 300

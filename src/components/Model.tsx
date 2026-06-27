@@ -14,7 +14,7 @@ const EDITABLE_VERTICES = [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30]
  * GLTF Model component with vertex manipulation support
  */
 function GLTFModel({ heightOffset, refreshKey }: ModelProps) {
-  const { scene } = useGLTF('/test4.gltf')
+  const { scene } = useGLTF('/test5.gltf')
   const meshRef = useRef<THREE.Group>(null)
   
   // Store original vertex positions
@@ -66,7 +66,7 @@ function GLTFModel({ heightOffset, refreshKey }: ModelProps) {
 }
 
 // Preload the model
-useGLTF.preload('/test4.gltf')
+useGLTF.preload('/test5.gltf')
 
 /**
  * Fallback component that renders a simple geometry when model loading fails
